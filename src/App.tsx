@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Analysis from "./pages/Analysis";
+import Prediction from "./pages/Prediction";
 import SavedPage from "./pages/Saved";
 import HistoryPage from "./pages/History";
 import ExportPage from "./pages/Export";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/analysis" element={<Analysis />} />
+          <Route path="/prediction" element={<Prediction />} />
           <Route path="/saved" element={<SavedPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/export" element={<ExportPage />} />

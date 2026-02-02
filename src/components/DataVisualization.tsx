@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Map, Table2, TrendingUp, ZoomIn, Play, Pause, BarChart3 } from "lucide-react";
+import { Map, Table2, TrendingUp, ZoomIn, Play, Pause, Sparkles } from "lucide-react";
 import {
   ComposedChart,
   Bar,
@@ -29,6 +30,8 @@ const DataVisualization = ({
   healthArea,
   metric,
 }: DataVisualizationProps) => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [year, setYear] = useState([2023]);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -91,20 +94,27 @@ const DataVisualization = ({
               <Map className="h-4 w-4" />
               Map
             </TabsTrigger>
-          <TabsTrigger value="chart" className="gap-2">
+            <TabsTrigger value="chart" className="gap-2">
               <TrendingUp className="h-4 w-4" />
               Line
             </TabsTrigger>
-            <TabsTrigger value="bar" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Bar
-            </TabsTrigger>
           </TabsList>
 
-          <Button variant="outline" size="sm" className="gap-2">
-            <ZoomIn className="h-4 w-4" />
-            Zoom to selection
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="gap-2 bg-primary hover:bg-primary/90"
+              onClick={() => navigate(`/prediction?role=${searchParams.get("role") || "user"}`)}
+            >
+              <Sparkles className="h-4 w-4" />
+              Prediction
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <ZoomIn className="h-4 w-4" />
+              Zoom to selection
+            </Button>
+          </div>
         </div>
 
         {/* Map View */}
@@ -329,54 +339,6 @@ const DataVisualization = ({
                     stroke="hsl(25, 95%, 53%)" 
                     strokeWidth={2}
                     dot={{ fill: 'hsl(25, 95%, 53%)', strokeWidth: 2, r: 4 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Bar Chart View */}
-        <TabsContent value="bar" className="flex-1 p-6 m-0">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Bar Comparison</CardTitle>
-            </CardHeader>
-            <CardContent className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart
-                  data={chartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="year" 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                  />
-                  <YAxis 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Bar 
-                    dataKey="healthValue" 
-                    name={healthLabels[healthArea]}
-                    fill="hsl(217, 91%, 60%)" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="pollutionValue" 
-                    name={pollutionLabels[pollutionType]}
-                    fill="hsl(25, 95%, 53%)" 
-                    radius={[4, 4, 0, 0]}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
