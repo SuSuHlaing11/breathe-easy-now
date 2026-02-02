@@ -3,7 +3,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Map, Table2, TrendingUp, ZoomIn, Play, Pause } from "lucide-react";
+import { Map, Table2, TrendingUp, ZoomIn, Play, Pause, BarChart3 } from "lucide-react";
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DataVisualizationProps {
   selectedCountries: string[];
@@ -20,6 +31,16 @@ const DataVisualization = ({
 }: DataVisualizationProps) => {
   const [year, setYear] = useState([2023]);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Sample chart data for dual-axis visualization
+  const chartData = [
+    { year: '2018', healthValue: 50, pollutionValue: 22 },
+    { year: '2019', healthValue: 100, pollutionValue: 58 },
+    { year: '2020', healthValue: 30, pollutionValue: 25 },
+    { year: '2021', healthValue: 105, pollutionValue: 140 },
+    { year: '2022', healthValue: 85, pollutionValue: 95 },
+    { year: '2023', healthValue: 150, pollutionValue: 148 },
+  ];
 
   const metricLabels: Record<string, string> = {
     rate: "Rate per 100,000",
@@ -70,9 +91,13 @@ const DataVisualization = ({
               <Map className="h-4 w-4" />
               Map
             </TabsTrigger>
-            <TabsTrigger value="chart" className="gap-2">
+          <TabsTrigger value="chart" className="gap-2">
               <TrendingUp className="h-4 w-4" />
               Line
+            </TabsTrigger>
+            <TabsTrigger value="bar" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Bar
             </TabsTrigger>
           </TabsList>
 
@@ -170,10 +195,37 @@ const DataVisualization = ({
               </div>
 
               {/* Color Scale Legend */}
-              <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">No data</span>
-                <div className="flex-1 h-3 data-scale rounded" />
-                <span className="text-muted-foreground">20%</span>
+              <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1">
+                <div className="flex items-end gap-0">
+                  {/* No data box */}
+                  <div className="flex flex-col items-center mr-2">
+                    <div className="w-8 h-4 bg-[hsl(210,20%,92%)] border border-border/30" />
+                  </div>
+                  {/* Color scale segments */}
+                  <div className="flex-1 flex">
+                    <div className="flex-1 h-4 bg-[hsl(45,70%,92%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(45,75%,80%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(40,80%,70%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(35,85%,60%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(25,85%,55%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(15,80%,50%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(10,75%,40%)]" />
+                    <div className="flex-1 h-4 bg-[hsl(5,70%,30%)]" />
+                  </div>
+                </div>
+                {/* Labels */}
+                <div className="flex items-start gap-0 text-xs text-muted-foreground">
+                  <span className="w-8 mr-2 text-center">No data</span>
+                  <div className="flex-1 flex justify-between">
+                    <span>0%</span>
+                    <span>0.5%</span>
+                    <span>1%</span>
+                    <span>2%</span>
+                    <span>5%</span>
+                    <span>10%</span>
+                    <span>20%</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -219,59 +271,115 @@ const DataVisualization = ({
               <CardTitle>Trend Analysis</CardTitle>
             </CardHeader>
             <CardContent className="h-[400px]">
-              {/* Placeholder chart - using simple SVG visualization */}
-              <div className="w-full h-full flex items-end gap-1 pr-8">
-                {/* Y-axis labels */}
-                <div className="flex flex-col justify-between h-full text-xs text-muted-foreground w-12">
-                  <span>100</span>
-                  <span>75</span>
-                  <span>50</span>
-                  <span>25</span>
-                  <span>0</span>
-                </div>
-                
-                {/* Chart area */}
-                <div className="flex-1 flex items-end gap-1 border-l border-b border-border relative h-full">
-                  {/* Sample bars and lines */}
-                  {Array.from({ length: 20 }, (_, i) => {
-                    const pollutionHeight = 30 + Math.sin(i * 0.5) * 20 + Math.random() * 15;
-                    const healthHeight = 25 + Math.cos(i * 0.3) * 15 + Math.random() * 20;
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center relative h-full justify-end gap-1">
-                        {/* Bar for health data */}
-                        <div
-                          className="w-full max-w-[20px] bg-chart-health rounded-t opacity-80"
-                          style={{ height: `${healthHeight}%` }}
-                        />
-                        {/* Line point for pollution */}
-                        <div
-                          className="absolute w-2 h-2 rounded-full bg-chart-pollution"
-                          style={{ bottom: `${pollutionHeight}%` }}
-                        />
-                      </div>
-                    );
-                  })}
-                  
-                  {/* X-axis labels */}
-                  <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-xs text-muted-foreground">
-                    <span>2004</span>
-                    <span>2014</span>
-                    <span>2023</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Legend */}
-              <div className="flex justify-center gap-6 mt-8 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-3 rounded bg-chart-pollution" />
-                  <span>{pollutionLabels[pollutionType]} (Line)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-3 rounded bg-chart-health" />
-                  <span>{healthLabels[healthArea]} (Bar)</span>
-                </div>
-              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={chartData}
+                  margin={{ top: 20, right: 60, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="year" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                  />
+                  <YAxis 
+                    yAxisId="left"
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    label={{ 
+                      value: healthLabels[healthArea], 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
+                    }}
+                  />
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right"
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    label={{ 
+                      value: `${pollutionLabels[pollutionType]} (μg/m³)`, 
+                      angle: 90, 
+                      position: 'insideRight',
+                      style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
+                    }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Legend />
+                  <Bar 
+                    yAxisId="left" 
+                    dataKey="healthValue" 
+                    name={healthLabels[healthArea]}
+                    fill="hsl(217, 91%, 60%)" 
+                    radius={[2, 2, 0, 0]}
+                    barSize={40}
+                  />
+                  <Line 
+                    yAxisId="right" 
+                    type="monotone" 
+                    dataKey="pollutionValue" 
+                    name={pollutionLabels[pollutionType]}
+                    stroke="hsl(25, 95%, 53%)" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(25, 95%, 53%)', strokeWidth: 2, r: 4 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Bar Chart View */}
+        <TabsContent value="bar" className="flex-1 p-6 m-0">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>Bar Comparison</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={chartData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="year" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                  />
+                  <YAxis 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="healthValue" 
+                    name={healthLabels[healthArea]}
+                    fill="hsl(217, 91%, 60%)" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="pollutionValue" 
+                    name={pollutionLabels[pollutionType]}
+                    fill="hsl(25, 95%, 53%)" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
