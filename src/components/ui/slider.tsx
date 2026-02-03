@@ -3,7 +3,7 @@ import * as SliderPrimitive from "@radix-ui/react-slider";
 
 import { cn } from "@/lib/utils";
 
-interface SliderProps extends React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> {
+interface SliderProps extends Omit<React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>, 'onPointerDown'> {
   onAddThumb?: (value: number) => void;
   onRemoveThumb?: (index: number) => void;
 }
@@ -15,9 +15,8 @@ const Slider = React.forwardRef<
   const values = props.value || props.defaultValue || [0];
   const canAddThumb = values.length < 2;
   
-  const handleTrackClick = (e: React.MouseEvent<HTMLSpanElement>) => {
-    // Don't add if clicking on a thumb (check if target is the track itself)
-    if ((e.target as HTMLElement).getAttribute('role') === 'slider') return;
+  const handleTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only handle if we can add a thumb and handler exists
     if (!canAddThumb || !onAddThumb) return;
     
     const track = e.currentTarget;
@@ -27,39 +26,46 @@ const Slider = React.forwardRef<
     const max = props.max ?? 100;
     const newValue = Math.round(min + percent * (max - min));
     
-    // Don't add if too close to existing values
-    const tooClose = values.some(v => Math.abs(v - newValue) < 3);
+    // Don't add if too close to existing values (within 5 years)
+    const tooClose = values.some(v => Math.abs(v - newValue) < 5);
     if (tooClose) return;
     
+    // Prevent default slider behavior and add new thumb
+    e.stopPropagation();
+    e.preventDefault();
     onAddThumb(newValue);
   };
 
   return (
-    <SliderPrimitive.Root
-      ref={ref}
-      className={cn("relative flex w-full touch-none select-none items-center", className)}
-      {...props}
-    >
-      <SliderPrimitive.Track 
-        className="relative h-[2px] w-full grow overflow-hidden rounded-full bg-muted-foreground/30 cursor-pointer"
-        onClick={handleTrackClick}
+    <div className="relative flex w-full touch-none select-none items-center">
+      {/* Invisible click layer for adding thumbs */}
+      {canAddThumb && (
+        <div 
+          className="absolute inset-0 z-10 cursor-pointer"
+          onPointerDown={handleTrackPointerDown}
+          style={{ height: '20px', top: '50%', transform: 'translateY(-50%)' }}
+        />
+      )}
+      <SliderPrimitive.Root
+        ref={ref}
+        className={cn("relative flex w-full touch-none select-none items-center", className)}
+        {...props}
       >
-        <SliderPrimitive.Range className="absolute h-full bg-muted-foreground/30" />
-      </SliderPrimitive.Track>
-      {values.map((_, index) => (
-        <SliderPrimitive.Thumb 
-          key={index}
-          className="group relative block h-4 w-4 rounded-full bg-muted-foreground/60 shadow-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted-foreground/80 cursor-grab active:cursor-grabbing"
-          onDoubleClick={() => values.length > 1 && onRemoveThumb?.(index)}
-        >
-          {values.length > 1 && (
-            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              double-click to remove
-            </span>
-          )}
-        </SliderPrimitive.Thumb>
-      ))}
-    </SliderPrimitive.Root>
+        <SliderPrimitive.Track className="relative h-[2px] w-full grow overflow-hidden rounded-full bg-muted-foreground/30">
+          <SliderPrimitive.Range className="absolute h-full bg-muted-foreground/30" />
+        </SliderPrimitive.Track>
+        {values.map((_, index) => (
+          <SliderPrimitive.Thumb 
+            key={index}
+            className="relative z-20 block h-4 w-4 rounded-full bg-muted-foreground/60 shadow-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-muted-foreground/80 cursor-grab active:cursor-grabbing"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (values.length > 1) onRemoveThumb?.(index);
+            }}
+          />
+        ))}
+      </SliderPrimitive.Root>
+    </div>
   );
 });
 Slider.displayName = SliderPrimitive.Root.displayName;
