@@ -453,6 +453,16 @@ const DataVisualization = ({
             <Slider
               value={yearRange}
               onValueChange={(values) => setYearRange(values.sort((a, b) => a - b))}
+              onAddThumb={(newValue) => {
+                if (yearRange.length < 2) {
+                  setYearRange([...yearRange, newValue].sort((a, b) => a - b));
+                }
+              }}
+              onRemoveThumb={(index) => {
+                if (yearRange.length > 1) {
+                  setYearRange(yearRange.filter((_, i) => i !== index));
+                }
+              }}
               min={1990}
               max={2023}
               step={1}
@@ -476,8 +486,8 @@ const DataVisualization = ({
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
             {isComparing 
-              ? `Comparing ${yearRange[0]} and ${yearRange[1]}` 
-              : `Viewing ${yearRange[0]} • Click on another year to compare`}
+              ? `Comparing ${yearRange[0]} and ${yearRange[1]} • Double-click a thumb to remove` 
+              : `Viewing ${yearRange[0]} • Click on the timeline to add a comparison year`}
           </p>
         </div>
       </Tabs>
