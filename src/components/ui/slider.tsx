@@ -16,6 +16,8 @@ const Slider = React.forwardRef<
   const canAddThumb = values.length < 2;
   
   const handleTrackClick = (e: React.MouseEvent<HTMLSpanElement>) => {
+    // Don't add if clicking on a thumb (check if target is the track itself)
+    if ((e.target as HTMLElement).getAttribute('role') === 'slider') return;
     if (!canAddThumb || !onAddThumb) return;
     
     const track = e.currentTarget;
@@ -24,6 +26,10 @@ const Slider = React.forwardRef<
     const min = props.min ?? 0;
     const max = props.max ?? 100;
     const newValue = Math.round(min + percent * (max - min));
+    
+    // Don't add if too close to existing values
+    const tooClose = values.some(v => Math.abs(v - newValue) < 3);
+    if (tooClose) return;
     
     onAddThumb(newValue);
   };
