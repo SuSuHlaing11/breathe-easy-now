@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Map, Table2, TrendingUp, ZoomIn, Play, Pause, Sparkles } from "lucide-react";
+import { Map, Table2, TrendingUp, ZoomIn, Play, Pause, Sparkles, Download, Share2, Maximize2 } from "lucide-react";
 import {
   ComposedChart,
   Bar,
@@ -307,75 +307,139 @@ const DataVisualization = ({
         <TabsContent value="chart" className="flex-1 p-6 m-0">
           <Card className="h-full">
             <CardHeader>
-              <CardTitle>Trend Analysis</CardTitle>
+              <CardTitle>Trend Analysis {isComparing && `(${yearRange[0]} vs ${yearRange[1]})`}</CardTitle>
             </CardHeader>
-            <CardContent className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart
-                  data={chartData}
-                  margin={{ top: 20, right: 60, left: 20, bottom: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="year" 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                  />
-                  <YAxis 
-                    yAxisId="left"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    label={{ 
-                      value: healthLabels[healthArea], 
-                      angle: -90, 
-                      position: 'insideLeft',
-                      style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
-                    }}
-                  />
-                  <YAxis 
-                    yAxisId="right" 
-                    orientation="right"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    label={{ 
-                      value: `${pollutionLabels[pollutionType]} (μg/m³)`, 
-                      angle: 90, 
-                      position: 'insideRight',
-                      style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
-                    }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Bar 
-                    yAxisId="left" 
-                    dataKey="healthValue" 
-                    name={healthLabels[healthArea]}
-                    fill="hsl(217, 91%, 60%)" 
-                    radius={[2, 2, 0, 0]}
-                    barSize={40}
-                  />
-                  <Line 
-                    yAxisId="right" 
-                    type="monotone" 
-                    dataKey="pollutionValue" 
-                    name={pollutionLabels[pollutionType]}
-                    stroke="hsl(25, 95%, 53%)" 
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(25, 95%, 53%)', strokeWidth: 2, r: 4 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+            <CardContent className={isComparing ? "h-[400px]" : "h-[400px]"}>
+              <div className={`flex ${isComparing ? 'gap-4' : ''} h-full`}>
+                {/* First Chart (or only chart) */}
+                <div className={`${isComparing ? 'flex-1' : 'w-full'} h-full flex flex-col`}>
+                  {isComparing && (
+                    <h3 className="text-lg font-semibold text-center mb-2">{yearRange[0]}</h3>
+                  )}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartData}
+                      margin={{ top: 20, right: isComparing ? 20 : 60, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="year" 
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                      />
+                      <YAxis 
+                        yAxisId="left"
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        label={{ 
+                          value: healthLabels[healthArea], 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
+                        }}
+                      />
+                      <YAxis 
+                        yAxisId="right" 
+                        orientation="right"
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        label={{ 
+                          value: `${pollutionLabels[pollutionType]} (μg/m³)`, 
+                          angle: 90, 
+                          position: 'insideRight',
+                          style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
+                        }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                      <Bar 
+                        yAxisId="left" 
+                        dataKey="healthValue" 
+                        name={healthLabels[healthArea]}
+                        fill="hsl(217, 91%, 60%)" 
+                        radius={[2, 2, 0, 0]}
+                        barSize={isComparing ? 20 : 40}
+                      />
+                      <Line 
+                        yAxisId="right" 
+                        type="monotone" 
+                        dataKey="pollutionValue" 
+                        name={pollutionLabels[pollutionType]}
+                        stroke="hsl(25, 95%, 53%)" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(25, 95%, 53%)', strokeWidth: 2, r: 4 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Second Chart (only when comparing) */}
+                {isComparing && (
+                  <div className="flex-1 h-full flex flex-col">
+                    <h3 className="text-lg font-semibold text-center mb-2">{yearRange[1]}</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart
+                        data={chartData}
+                        margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="year" 
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                        />
+                        <YAxis 
+                          yAxisId="left"
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                        />
+                        <YAxis 
+                          yAxisId="right" 
+                          orientation="right"
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          axisLine={{ stroke: 'hsl(var(--border))' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Legend />
+                        <Bar 
+                          yAxisId="left" 
+                          dataKey="healthValue" 
+                          name={healthLabels[healthArea]}
+                          fill="hsl(217, 91%, 60%)" 
+                          radius={[2, 2, 0, 0]}
+                          barSize={20}
+                        />
+                        <Line 
+                          yAxisId="right" 
+                          type="monotone" 
+                          dataKey="pollutionValue" 
+                          name={pollutionLabels[pollutionType]}
+                          stroke="hsl(25, 95%, 53%)" 
+                          strokeWidth={2}
+                          dot={{ fill: 'hsl(25, 95%, 53%)', strokeWidth: 2, r: 4 }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Year Range Slider */}
+        {/* Year Range Slider with Export Buttons */}
         <div className="p-6 border-t border-border bg-card">
           <div className="flex items-center gap-4">
             <Button
@@ -396,11 +460,24 @@ const DataVisualization = ({
               className="flex-1"
             />
             <span className="text-sm font-medium w-12">2023</span>
+            
+            {/* Export Buttons */}
+            <div className="flex items-center gap-1 ml-4 border-l border-border pl-4">
+              <Button variant="ghost" size="icon" title="Download">
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" title="Share">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" title="Fullscreen">
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
             {isComparing 
               ? `Comparing ${yearRange[0]} and ${yearRange[1]}` 
-              : `Viewing ${yearRange[0]} • Drag a second point to compare years`}
+              : `Viewing ${yearRange[0]} • Click on another year to compare`}
           </p>
         </div>
       </Tabs>
