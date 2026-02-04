@@ -6,107 +6,134 @@
 
 @layer base {
   :root {
-    /* Deep navy to teal palette */
-    --background: 210 20% 98%;
-    --foreground: 215 35% 15%;
+    /* 中国色谱 - Chinese Color Palette */
+    --background: 220 20% 95%;      /* 月白 #F0F2F5 */
+    --foreground: 0 0% 17%;          /* 墨黑 #2C2C2C */
 
     --card: 0 0% 100%;
-    --card-foreground: 215 35% 15%;
+    --card-foreground: 0 0% 17%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 35% 15%;
+    --popover-foreground: 0 0% 17%;
 
-    /* Deep navy primary */
-    --primary: 215 50% 23%;
+    /* 黛蓝 - Primary */
+    --primary: 213 45% 33%;          /* #2E4E7A */
     --primary-foreground: 0 0% 100%;
 
-    /* Light gray secondary */
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 215 35% 25%;
+    /* 石青 - Secondary */
+    --secondary: 180 15% 92%;
+    --secondary-foreground: 180 15% 33%;
 
-    --muted: 210 15% 93%;
-    --muted-foreground: 215 15% 45%;
+    --muted: 220 15% 90%;
+    --muted-foreground: 197 10% 35%;  /* 鸦青 lighter */
 
-    /* Teal accent */
-    --accent: 185 60% 40%;
+    /* 竹绿 - Accent */
+    --accent: 151 20% 44%;           /* #5A8770 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 6 78% 57%;        /* 数据红 #E74C3C */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 88%;
-    --input: 210 20% 88%;
-    --ring: 185 60% 40%;
+    --border: 197 10% 80%;           /* 鸦青 #424C50 lighter */
+    --input: 197 10% 80%;
+    --ring: 213 45% 33%;
 
     --radius: 0.5rem;
 
-    /* Data visualization colors for map - warm scale */
-    --data-none: 45 30% 96%;
-    --data-low: 45 70% 85%;
-    --data-medium-low: 35 80% 70%;
-    --data-medium: 25 85% 60%;
-    --data-medium-high: 15 85% 50%;
-    --data-high: 5 80% 40%;
-    --data-critical: 0 70% 30%;
+    /* 数据彩虹配色 - Data Rainbow */
+    --data-red: 6 78% 57%;           /* #E74C3C - 严重污染/高风险 */
+    --data-orange: 28 80% 52%;       /* #E67E22 - 重度污染 */
+    --data-yellow: 37 90% 51%;       /* #F39C12 - 中度污染 */
+    --data-green: 145 63% 49%;       /* #2ECC71 - 轻度污染 */
+    --data-blue: 204 70% 53%;        /* #3498DB - 良好 */
+    --data-purple: 283 39% 53%;      /* #9B59B6 - 数据源/特殊区域 */
+    --data-gray: 184 6% 62%;         /* #95A5A6 - 基准线/无数据 */
+
+    /* 污染程度渐变 - Pollution Gradient */
+    --soil-brown: 25 75% 31%;        /* #8B4513 - 土壤褐 */
+    --grass-green: 145 63% 42%;      /* #27AE60 - 草地绿 */
+    --forest-teal: 168 75% 36%;      /* #16A085 - 森林青 */
+    --sky-blue: 204 64% 44%;         /* #2980B9 - 天空蓝 */
+    --cloud-gray: 184 6% 53%;        /* #7F8C8D - 云灰 */
+    --sun-yellow: 48 89% 50%;        /* #F1C40F - 日光黄 */
+    --smoke-dark: 210 29% 29%;       /* #34495E - 烟灰 */
+    --ice-blue: 207 52% 78%;         /* #A9CCE3 - 冰蓝 */
+
+    /* Map data visualization - warm scale */
+    --data-none: 220 20% 95%;
+    --data-low: 145 63% 85%;         /* 轻度 - light green */
+    --data-medium-low: 145 63% 65%;
+    --data-medium: 37 90% 60%;       /* 中度 - yellow */
+    --data-medium-high: 28 80% 52%;  /* 重度 - orange */
+    --data-high: 6 78% 57%;          /* 严重 - red */
+    --data-critical: 6 78% 35%;
 
     /* Chart colors */
-    --chart-pollution: 185 60% 45%;
-    --chart-health: 25 80% 55%;
+    --chart-pollution: 210 29% 29%;  /* 烟灰 */
+    --chart-health: 145 63% 42%;     /* 草地绿 */
+
+    /* 中国色谱界面色 */
+    --dai-blue: 213 45% 33%;         /* 黛蓝 */
+    --shi-qing: 180 15% 48%;         /* 石青 */
+    --zhu-lv: 151 20% 44%;           /* 竹绿 */
+    --zhe-shi: 20 57% 40%;           /* 赭石 */
+    --jiang-zi: 320 30% 42%;         /* 绛紫 */
+    --ya-qing: 197 10% 29%;          /* 鸦青 */
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 35% 25%;
-    --sidebar-primary: 215 50% 23%;
+    --sidebar-foreground: 0 0% 17%;
+    --sidebar-primary: 213 45% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 96%;
-    --sidebar-accent-foreground: 215 35% 25%;
-    --sidebar-border: 210 20% 90%;
-    --sidebar-ring: 185 60% 40%;
+    --sidebar-accent: 220 15% 94%;
+    --sidebar-accent-foreground: 0 0% 17%;
+    --sidebar-border: 197 10% 85%;
+    --sidebar-ring: 213 45% 33%;
 
-    /* Success/warning states */
-    --success: 150 60% 40%;
+    /* Success/warning states - 状态指示 */
+    --success: 145 63% 42%;          /* 草地绿 - 良好/安全 */
     --success-foreground: 0 0% 100%;
-    --warning: 40 90% 50%;
-    --warning-foreground: 215 35% 15%;
+    --warning: 37 90% 51%;           /* 日光黄 - 中等/注意 */
+    --warning-foreground: 0 0% 17%;
   }
 
   .dark {
-    --background: 215 35% 10%;
-    --foreground: 210 20% 95%;
+    --background: 210 29% 12%;       /* 烟灰 darker */
+    --foreground: 220 20% 92%;
 
-    --card: 215 30% 14%;
-    --card-foreground: 210 20% 95%;
+    --card: 210 29% 16%;
+    --card-foreground: 220 20% 92%;
 
-    --popover: 215 30% 14%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 210 29% 16%;
+    --popover-foreground: 220 20% 92%;
 
-    --primary: 185 60% 50%;
-    --primary-foreground: 215 35% 10%;
+    --primary: 204 70% 53%;          /* 数据蓝 */
+    --primary-foreground: 0 0% 10%;
 
-    --secondary: 215 25% 20%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 210 29% 22%;
+    --secondary-foreground: 220 20% 85%;
 
-    --muted: 215 25% 18%;
-    --muted-foreground: 210 15% 60%;
+    --muted: 210 29% 20%;
+    --muted-foreground: 184 6% 60%;
 
-    --accent: 185 55% 45%;
+    --accent: 145 63% 42%;           /* 草地绿 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 65% 45%;
+    --destructive: 6 78% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 25% 22%;
-    --input: 215 25% 22%;
-    --ring: 185 55% 45%;
+    --border: 210 29% 25%;
+    --input: 210 29% 25%;
+    --ring: 204 70% 53%;
 
-    --sidebar-background: 215 30% 12%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 185 55% 50%;
-    --sidebar-primary-foreground: 215 35% 10%;
-    --sidebar-accent: 215 25% 18%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 215 25% 20%;
-    --sidebar-ring: 185 55% 45%;
+    --sidebar-background: 210 29% 14%;
+    --sidebar-foreground: 220 20% 88%;
+    --sidebar-primary: 204 70% 53%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 210 29% 20%;
+    --sidebar-accent-foreground: 220 20% 88%;
+    --sidebar-border: 210 29% 22%;
+    --sidebar-ring: 204 70% 53%;
   }
 }
 
@@ -123,26 +150,33 @@
 
 @layer components {
   .gradient-hero {
-    background: linear-gradient(135deg, hsl(215 50% 23%) 0%, hsl(200 45% 30%) 50%, hsl(185 60% 40%) 100%);
+    background: linear-gradient(135deg, hsl(213 45% 33%) 0%, hsl(180 15% 48%) 50%, hsl(151 20% 44%) 100%);
   }
 
   .gradient-card {
-    background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
+    background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 20% 97%) 100%);
   }
 
   .map-tooltip {
     @apply bg-card text-card-foreground shadow-lg rounded-lg border border-border p-3;
   }
 
+  /* 污染程度渐变 - Green to Red scale */
   .data-scale {
     background: linear-gradient(90deg, 
-      hsl(var(--data-none)) 0%, 
-      hsl(var(--data-low)) 16%, 
-      hsl(var(--data-medium-low)) 33%, 
-      hsl(var(--data-medium)) 50%, 
-      hsl(var(--data-medium-high)) 66%, 
-      hsl(var(--data-high)) 83%, 
-      hsl(var(--data-critical)) 100%
+      hsl(var(--data-green)) 0%,      /* 良好 - green */
+      hsl(var(--data-yellow)) 33%,    /* 中度 - yellow */
+      hsl(var(--data-orange)) 66%,    /* 重度 - orange */
+      hsl(var(--data-red)) 100%       /* 严重 - red */
+    );
+  }
+
+  /* 自然渐变 - Nature gradient */
+  .nature-gradient {
+    background: linear-gradient(180deg, 
+      hsl(var(--sky-blue)) 0%, 
+      hsl(var(--forest-teal)) 50%, 
+      hsl(var(--grass-green)) 100%
     );
   }
 

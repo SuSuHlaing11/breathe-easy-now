@@ -68,7 +68,16 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        // 数据彩虹配色
         data: {
+          red: "hsl(var(--data-red))",
+          orange: "hsl(var(--data-orange))",
+          yellow: "hsl(var(--data-yellow))",
+          green: "hsl(var(--data-green))",
+          blue: "hsl(var(--data-blue))",
+          purple: "hsl(var(--data-purple))",
+          gray: "hsl(var(--data-gray))",
+          // Map scale
           none: "hsl(var(--data-none))",
           low: "hsl(var(--data-low))",
           "medium-low": "hsl(var(--data-medium-low))",
@@ -76,6 +85,26 @@ export default {
           "medium-high": "hsl(var(--data-medium-high))",
           high: "hsl(var(--data-high))",
           critical: "hsl(var(--data-critical))",
+        },
+        // 污染程度渐变
+        nature: {
+          soil: "hsl(var(--soil-brown))",
+          grass: "hsl(var(--grass-green))",
+          forest: "hsl(var(--forest-teal))",
+          sky: "hsl(var(--sky-blue))",
+          cloud: "hsl(var(--cloud-gray))",
+          sun: "hsl(var(--sun-yellow))",
+          smoke: "hsl(var(--smoke-dark))",
+          ice: "hsl(var(--ice-blue))",
+        },
+        // 中国色谱
+        chinese: {
+          dai: "hsl(var(--dai-blue))",
+          shi: "hsl(var(--shi-qing))",
+          zhu: "hsl(var(--zhu-lv))",
+          zhe: "hsl(var(--zhe-shi))",
+          jiang: "hsl(var(--jiang-zi))",
+          ya: "hsl(var(--ya-qing))",
         },
         chart: {
           pollution: "hsl(var(--chart-pollution))",
