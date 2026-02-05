@@ -153,20 +153,42 @@ const DataVisualization = ({
                 <div className="flex items-center justify-center gap-2">
                   {/* No data indicator */}
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground">无数据</span>
-                    <div className="w-6 h-4 rounded border border-border bg-muted" />
+                    <span className="text-xs text-muted-foreground">No data</span>
+                    <div 
+                      className="w-8 h-4 border border-border" 
+                      style={{
+                        background: `repeating-linear-gradient(
+                          45deg,
+                          hsl(var(--muted)),
+                          hsl(var(--muted)) 2px,
+                          hsl(var(--background)) 2px,
+                          hsl(var(--background)) 4px
+                        )`
+                      }}
+                    />
                   </div>
                   
-                  {/* Color scale - using data rainbow colors */}
-                  <div className="flex items-center">
-                    <span className="text-xs text-muted-foreground mr-1">良好</span>
-                    <div className="flex rounded overflow-hidden">
-                      <div className="w-10 h-4 bg-data-green" />
-                      <div className="w-10 h-4 bg-data-yellow" />
-                      <div className="w-10 h-4 bg-data-orange" />
-                      <div className="w-10 h-4 bg-data-red" />
+                  {/* Percentage scale legend */}
+                  <div className="flex items-center gap-0">
+                    <span className="text-xs text-muted-foreground mr-2">0%</span>
+                    <div className="flex">
+                      <div className="w-8 h-4" style={{ background: '#FEF3E2' }} />
+                      <div className="w-8 h-4" style={{ background: '#FDDFB8' }} />
+                      <div className="w-8 h-4" style={{ background: '#FCCC8A' }} />
+                      <div className="w-8 h-4" style={{ background: '#FC8D59' }} />
+                      <div className="w-8 h-4" style={{ background: '#E34A33' }} />
+                      <div className="w-8 h-4" style={{ background: '#B30000' }} />
                     </div>
-                    <span className="text-xs text-muted-foreground ml-1">严重</span>
+                  </div>
+                  
+                  {/* Percentage labels */}
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <span className="w-8 text-center">0.5%</span>
+                    <span className="w-8 text-center">1%</span>
+                    <span className="w-8 text-center">2%</span>
+                    <span className="w-8 text-center">5%</span>
+                    <span className="w-8 text-center">10%</span>
+                    <span className="w-8 text-center">20%</span>
                   </div>
                 </div>
               </div>
