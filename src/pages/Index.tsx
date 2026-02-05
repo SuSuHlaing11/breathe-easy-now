@@ -49,14 +49,14 @@ const Index = () => {
             </div>
 
             <h1 className="text-4xl md:text-6xl font-bold text-white text-balance leading-tight">
-              空气污染与公共健康
+              Air Pollution & Public Health
               <span className="block text-2xl md:text-3xl font-normal text-white/80 mt-4">
-                Air Pollution & Public Health Explorer
+                Global Data Explorer Platform
               </span>
             </h1>
             
             <p className="text-lg md:text-xl text-white/75 max-w-2xl mx-auto leading-relaxed">
-              探索全球空气质量与健康结果之间的关系。可视化数据、比较区域、发现洞察。
+              Explore the relationship between global air quality and health outcomes. Visualize data, compare regions, and discover insights.
             </p>
             
             <div className="pt-4 max-w-xl mx-auto">
@@ -67,11 +67,11 @@ const Index = () => {
             <div className="flex flex-wrap justify-center gap-3 pt-4">
               <Button variant="secondary" className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-sm">
                 <Activity className="h-4 w-4 mr-2" />
-                实时数据
+                Real-time Data
               </Button>
               <Button variant="secondary" className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-sm">
                 <TrendingUp className="h-4 w-4 mr-2" />
-                趋势分析
+                Trend Analysis
               </Button>
             </div>
           </div>
@@ -90,10 +90,10 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { icon: Globe2, value: "195+", label: "国家/地区", color: "text-chinese-dai" },
-              { icon: Database, value: "50+", label: "年份数据", color: "text-chinese-shi" },
-              { icon: Heart, value: "12+", label: "健康指标", color: "text-data-red" },
-              { icon: Users, value: "10K+", label: "活跃用户", color: "text-chinese-zhu" },
+              { icon: Globe2, value: "195+", label: "Countries", color: "text-chinese-dai" },
+              { icon: Database, value: "50+", label: "Years of Data", color: "text-chinese-shi" },
+              { icon: Heart, value: "12+", label: "Health Metrics", color: "text-data-red" },
+              { icon: Users, value: "10K+", label: "Active Users", color: "text-chinese-zhu" },
             ].map((stat, index) => (
               <Card key={index} className="border-0 shadow-sm hover:shadow-md transition-shadow bg-card">
                 <CardContent className="p-6 text-center">
@@ -117,13 +117,13 @@ const Index = () => {
           <div className="max-w-3xl mx-auto text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-chinese-dai/10 text-chinese-dai text-sm font-medium mb-4">
               <Leaf className="h-4 w-4" />
-              关于项目
+              About
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              数据驱动的健康洞察
+              Data-Driven Health Insights
             </h2>
             <p className="text-lg text-muted-foreground">
-              理解空气污染与公共健康之间的关系，对于政策制定和公众意识至关重要。
+              Understanding the relationship between air pollution and public health is crucial for policy making and public awareness.
             </p>
           </div>
 
@@ -131,20 +131,20 @@ const Index = () => {
             {[
               {
                 icon: BarChart3,
-                title: "数据驱动",
-                description: "访问结合空气质量测量与全球可信来源健康统计的综合数据集。",
+                title: "Data-Driven",
+                description: "Access comprehensive datasets combining air quality measurements with health statistics from trusted global sources.",
                 color: "bg-data-blue/10 text-data-blue",
               },
               {
                 icon: Globe2,
-                title: "全球覆盖",
-                description: "探索来自195+个国家和地区的数据，可按大陆、收入群体等过滤。",
+                title: "Global Coverage",
+                description: "Explore data from 195+ countries and regions, filterable by continent, income group, and more.",
                 color: "bg-chinese-zhu/10 text-chinese-zhu",
               },
               {
                 icon: Heart,
-                title: "健康指标",
-                description: "分析各种健康指标，包括呼吸系统疾病、心血管疾病和死亡率。",
+                title: "Health Metrics",
+                description: "Analyze various health indicators including respiratory diseases, cardiovascular conditions, and mortality rates.",
                 color: "bg-data-red/10 text-data-red",
               },
             ].map((feature, index) => (
@@ -171,13 +171,13 @@ const Index = () => {
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-chinese-shi/10 text-chinese-shi text-sm font-medium mb-4">
                 <Mail className="h-4 w-4" />
-                联系我们
+                Contact Us
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-                有问题或反馈？
+                Have Questions or Feedback?
               </h2>
               <p className="text-lg text-muted-foreground">
-                我们很乐意听取您的意见
+                We'd love to hear from you
               </p>
             </div>
 
@@ -185,9 +185,9 @@ const Index = () => {
               {/* Contact Info */}
               <div className="space-y-4">
                 {[
-                  { icon: Mail, title: "电子邮件", value: "contact@airhealth.org", color: "bg-chinese-dai/10 text-chinese-dai" },
-                  { icon: MapPin, title: "地址", value: "全球健康研究中心", color: "bg-chinese-zhu/10 text-chinese-zhu" },
-                  { icon: Phone, title: "电话", value: "+1 (555) 123-4567", color: "bg-chinese-shi/10 text-chinese-shi" },
+                  { icon: Mail, title: "Email", value: "contact@airhealth.org", color: "bg-chinese-dai/10 text-chinese-dai" },
+                  { icon: MapPin, title: "Address", value: "Global Health Research Center", color: "bg-chinese-zhu/10 text-chinese-zhu" },
+                  { icon: Phone, title: "Phone", value: "+1 (555) 123-4567", color: "bg-chinese-shi/10 text-chinese-shi" },
                 ].map((info, index) => (
                   <Card key={index} className="border-0 shadow-sm hover:shadow-md transition-shadow">
                     <CardContent className="p-5 flex items-center gap-4">
@@ -208,23 +208,23 @@ const Index = () => {
                 <CardContent className="p-6 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">姓</label>
-                      <Input placeholder="张" className="bg-secondary/50" />
+                      <label className="text-sm font-medium text-foreground">First Name</label>
+                      <Input placeholder="John" className="bg-secondary/50" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">名</label>
-                      <Input placeholder="三" className="bg-secondary/50" />
+                      <label className="text-sm font-medium text-foreground">Last Name</label>
+                      <Input placeholder="Doe" className="bg-secondary/50" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">电子邮件</label>
-                    <Input type="email" placeholder="zhangsan@example.com" className="bg-secondary/50" />
+                    <label className="text-sm font-medium text-foreground">Email</label>
+                    <Input type="email" placeholder="john.doe@example.com" className="bg-secondary/50" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">留言</label>
-                    <Textarea placeholder="您的留言..." rows={4} className="bg-secondary/50" />
+                    <label className="text-sm font-medium text-foreground">Message</label>
+                    <Textarea placeholder="Your message..." rows={4} className="bg-secondary/50" />
                   </div>
-                  <Button className="w-full bg-chinese-dai hover:bg-chinese-dai/90">发送留言</Button>
+                  <Button className="w-full bg-chinese-dai hover:bg-chinese-dai/90">Send Message</Button>
                 </CardContent>
               </Card>
             </div>
