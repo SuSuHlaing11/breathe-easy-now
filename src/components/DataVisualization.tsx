@@ -74,11 +74,13 @@ const DataVisualization = ({
 
   // Helper to render a single map using Leaflet
   const renderMap = (yearValue: number, showTooltip: boolean = true) => (
-    <div className="flex-1 flex flex-col min-h-[400px]">
+    <div className="flex-1 flex flex-col min-h-[400px] bg-card rounded-xl shadow-sm">
       {isComparing && (
-        <h2 className="text-2xl font-bold text-center text-foreground mb-4">{yearValue}</h2>
+        <div className="py-3 px-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-center text-foreground">{yearValue}</h2>
+        </div>
       )}
-      <div className="flex-1 rounded-lg overflow-hidden border border-border">
+      <div className="flex-1 rounded-b-xl overflow-hidden">
         <LeafletMap
           selectedCountries={selectedCountries}
           year={yearValue}
@@ -140,16 +142,16 @@ const DataVisualization = ({
 
         {/* Map View */}
         <TabsContent value="map" className="flex-1 p-6 m-0">
-          <Card className="h-full border-border">
-            <CardContent className="p-4 h-full">
+          <Card className="h-full border-border bg-muted/30">
+            <CardContent className="p-6 h-full">
               {/* Map Container - side by side when comparing */}
-              <div className={`flex ${isComparing ? 'gap-4' : ''} h-full`}>
+              <div className={`flex ${isComparing ? 'gap-6' : ''} h-full`}>
                 {renderMap(yearRange[0], true)}
                 {isComparing && renderMap(yearRange[1], false)}
               </div>
 
               {/* Color Scale Legend */}
-              <div className="mt-4 flex flex-col gap-1">
+              <div className="mt-6 flex flex-col gap-1 bg-card rounded-lg p-3 shadow-sm">
                 <div className="flex items-center justify-center gap-2">
                   {/* No data indicator */}
                   <div className="flex items-center gap-1">
