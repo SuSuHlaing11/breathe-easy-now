@@ -1,7 +1,8 @@
 import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, MapPin, ExternalLink } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Bookmark } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface HistoryPageProps {
   isAdmin?: boolean;
@@ -64,7 +65,9 @@ const HistoryPage = ({ isAdmin = false }: HistoryPageProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recent Activity</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -91,10 +94,26 @@ const HistoryPage = ({ isAdmin = false }: HistoryPageProps) => {
                       )}
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" className="gap-2">
-                    <ExternalLink className="h-4 w-4" />
-                    Open
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="gap-2"
+                      onClick={() => {
+                        toast({
+                          title: "Saved!",
+                          description: `"${item.title}" has been saved to your collection.`,
+                        });
+                      }}
+                    >
+                      <Bookmark className="h-4 w-4" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" className="gap-2">
+                      <ExternalLink className="h-4 w-4" />
+                      Open
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
