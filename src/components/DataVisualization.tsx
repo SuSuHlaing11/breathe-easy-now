@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -17,6 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import LeafletMap from "./LeafletMap";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface DataVisualizationProps {
   selectedCountries: string[];
@@ -35,7 +37,9 @@ const DataVisualization = ({
   const [searchParams] = useSearchParams();
   const [yearRange, setYearRange] = useState<number[]>([2000]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeTab, setActiveTab] = useState("map");
   const isComparing = yearRange.length === 2;
+  const prefersReducedMotion = useReducedMotion();
 
   // Generate chart data based on selected year
   const generateChartData = (selectedYear: number) => {
@@ -84,13 +88,49 @@ const DataVisualization = ({
     stroke: "Stroke",
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }
+    }
+  };
+
+  const mapTransition = {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+    transition: { duration: 0.3 }
+  };
+
   // Helper to render a single map using Leaflet
-  const renderMap = (yearValue: number, showTooltip: boolean = true) => (
-    <div className="flex-1 flex flex-col min-h-[400px] bg-card rounded-xl shadow-sm">
+  const renderMap = (yearValue: number, showTooltip: boolean = true, index: number = 0) => (
+    <motion.div 
+      className="flex-1 flex flex-col min-h-[400px] bg-card rounded-xl shadow-sm overflow-hidden"
+      initial={prefersReducedMotion ? {} : { opacity: 0, x: index === 0 ? -20 : 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
+      whileHover={prefersReducedMotion ? {} : { boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }}
+    >
       {isComparing && (
-        <div className="py-3 px-4 border-b border-border">
+        <motion.div 
+          className="py-3 px-4 border-b border-border bg-secondary/30"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 + index * 0.1 }}
+        >
           <h2 className="text-xl font-semibold text-center text-foreground">{yearValue}</h2>
-        </div>
+        </motion.div>
       )}
       <div className="flex-1 rounded-b-xl overflow-hidden">
         <LeafletMap
@@ -101,13 +141,23 @@ const DataVisualization = ({
           metricLabel={metricLabels[metric]}
         />
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-background overflow-auto">
+    <motion.div 
+      className="flex-1 flex flex-col bg-background overflow-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {/* Title Section */}
-      <div className="p-6 border-b border-border">
+      <motion.div 
+        className="p-6 border-b border-border"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <h1 className="text-2xl font-bold text-foreground">
           {healthLabels[healthArea]} - {pollutionLabels[pollutionType]}{!isComparing && `, ${yearRange[0]}`}
         </h1>
@@ -115,52 +165,73 @@ const DataVisualization = ({
           {metricLabels[metric]} affected by air pollution exposure
           {isComparing && ` (comparing ${yearRange[0]} vs ${yearRange[1]})`}
         </p>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
-      <Tabs defaultValue="map" className="flex-1 flex flex-col">
-        <div className="px-6 pt-4 flex items-center justify-between">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <motion.div 
+          className="px-6 pt-4 flex items-center justify-between"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
           <TabsList>
-            <TabsTrigger value="table" className="gap-2">
-              <Table2 className="h-4 w-4" />
-              Table
-            </TabsTrigger>
-            <TabsTrigger value="map" className="gap-2">
-              <Map className="h-4 w-4" />
-              Map
-            </TabsTrigger>
-            <TabsTrigger value="chart" className="gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Line
-            </TabsTrigger>
+            {[
+              { value: 'table', icon: Table2, label: 'Table' },
+              { value: 'map', icon: Map, label: 'Map' },
+              { value: 'chart', icon: TrendingUp, label: 'Line' }
+            ].map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="gap-2">
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <div className="flex items-center gap-2">
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="gap-2 bg-primary hover:bg-primary/90"
-              onClick={() => navigate(`/prediction?role=${searchParams.get("role") || "user"}`)}
-            >
-              <Sparkles className="h-4 w-4" />
-              Prediction
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <ZoomIn className="h-4 w-4" />
-              Zoom to selection
-            </Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="gap-2 bg-primary hover:bg-primary/90"
+                onClick={() => navigate(`/prediction?role=${searchParams.get("role") || "user"}`)}
+              >
+                <Sparkles className="h-4 w-4" />
+                Prediction
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <ZoomIn className="h-4 w-4" />
+                Zoom to selection
+              </Button>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Map View */}
         <TabsContent value="map" className="flex-1 p-6 m-0">
-          <Card className="h-full border-border bg-muted/30">
-            <CardContent className="p-6 h-full">
-              {/* Map Container - side by side when comparing */}
-              <div className={`flex ${isComparing ? 'gap-6' : ''} h-full`}>
-                {renderMap(yearRange[0], true)}
-                {isComparing && renderMap(yearRange[1], false)}
-              </div>
+          <motion.div
+            key={`map-${yearRange.join('-')}`}
+            initial={prefersReducedMotion ? {} : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="h-full border-border bg-muted/30">
+              <CardContent className="p-6 h-full">
+                {/* Map Container - side by side when comparing */}
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={isComparing ? 'comparing' : 'single'}
+                    className={`flex ${isComparing ? 'gap-6' : ''} h-full`}
+                    initial={prefersReducedMotion ? {} : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {renderMap(yearRange[0], true, 0)}
+                    {isComparing && renderMap(yearRange[1], false, 1)}
+                  </motion.div>
+                </AnimatePresence>
 
               {/* Color Scale Legend */}
               <div className="mt-6 flex flex-col gap-1 bg-card rounded-lg p-3 shadow-sm">
@@ -208,6 +279,7 @@ const DataVisualization = ({
               </div>
             </CardContent>
           </Card>
+          </motion.div>
         </TabsContent>
 
         {/* Table View */}
@@ -245,26 +317,51 @@ const DataVisualization = ({
 
         {/* Line Chart View */}
         <TabsContent value="chart" className="flex-1 p-6 m-0">
-          <Card className="h-full border-border bg-muted/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between">
-                <span>Trend Analysis</span>
-                {isComparing && (
-                  <span className="text-sm font-normal text-muted-foreground">
-                    Comparing {yearRange[0]} vs {yearRange[1]}
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="h-[400px]">
-              <div className={`flex ${isComparing ? 'gap-6' : ''} h-full`}>
-                {/* First Chart (or only chart) */}
-                <div className={`${isComparing ? 'flex-1' : 'w-full'} h-full flex flex-col bg-card rounded-xl p-4 shadow-sm`}>
+          <motion.div
+            key={`chart-${yearRange.join('-')}`}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card className="h-full border-border bg-muted/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center justify-between">
+                  <span>Trend Analysis</span>
                   {isComparing && (
-                    <div className="py-2 px-4 border-b border-border mb-2">
-                      <h3 className="text-lg font-semibold text-center text-foreground">{yearRange[0]}</h3>
-                    </div>
+                    <motion.span 
+                      className="text-sm font-normal text-muted-foreground"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      Comparing {yearRange[0]} vs {yearRange[1]}
+                    </motion.span>
                   )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={isComparing ? 'comparing-chart' : 'single-chart'}
+                    className={`flex ${isComparing ? 'gap-6' : ''} h-full`}
+                    initial={prefersReducedMotion ? {} : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {/* First Chart (or only chart) */}
+                    <motion.div 
+                      className={`${isComparing ? 'flex-1' : 'w-full'} h-full flex flex-col bg-card rounded-xl p-4 shadow-sm`}
+                      initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                      whileHover={prefersReducedMotion ? {} : { boxShadow: '0 8px 20px -5px rgb(0 0 0 / 0.1)' }}
+                    >
+                      {isComparing && (
+                        <div className="py-2 px-4 border-b border-border mb-2 bg-secondary/30">
+                          <h3 className="text-lg font-semibold text-center text-foreground">{yearRange[0]}</h3>
+                        </div>
+                      )}
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
                       data={chartData1}
@@ -314,6 +411,8 @@ const DataVisualization = ({
                         fill="hsl(204, 70%, 53%)" 
                         radius={[4, 4, 0, 0]}
                         barSize={isComparing ? 24 : 40}
+                        animationDuration={800}
+                        animationBegin={0}
                       />
                       <Line 
                         yAxisId="right" 
@@ -323,15 +422,23 @@ const DataVisualization = ({
                         stroke="hsl(6, 78%, 57%)" 
                         strokeWidth={2}
                         dot={{ fill: 'hsl(6, 78%, 57%)', strokeWidth: 2, r: 4 }}
+                        animationDuration={1000}
+                        animationBegin={200}
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
-                </div>
+                </motion.div>
 
                 {/* Second Chart (only when comparing) */}
                 {isComparing && (
-                  <div className="flex-1 h-full flex flex-col bg-card rounded-xl p-4 shadow-sm">
-                    <div className="py-2 px-4 border-b border-border mb-2">
+                  <motion.div 
+                    className="flex-1 h-full flex flex-col bg-card rounded-xl p-4 shadow-sm"
+                    initial={prefersReducedMotion ? {} : { opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    whileHover={prefersReducedMotion ? {} : { boxShadow: '0 8px 20px -5px rgb(0 0 0 / 0.1)' }}
+                  >
+                    <div className="py-2 px-4 border-b border-border mb-2 bg-secondary/30">
                       <h3 className="text-lg font-semibold text-center text-foreground">{yearRange[1]}</h3>
                     </div>
                     <ResponsiveContainer width="100%" height="100%">
@@ -371,6 +478,8 @@ const DataVisualization = ({
                           fill="hsl(204, 70%, 53%)" 
                           radius={[4, 4, 0, 0]}
                           barSize={24}
+                          animationDuration={800}
+                          animationBegin={200}
                         />
                         <Line 
                           yAxisId="right" 
@@ -380,26 +489,37 @@ const DataVisualization = ({
                           stroke="hsl(6, 78%, 57%)" 
                           strokeWidth={2}
                           dot={{ fill: 'hsl(6, 78%, 57%)', strokeWidth: 2, r: 4 }}
+                          animationDuration={1000}
+                          animationBegin={400}
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+                  </motion.div>
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </motion.div>
         </TabsContent>
 
         {/* Year Range Slider with Export Buttons */}
-        <div className="p-6 border-t border-border bg-card">
+        <motion.div 
+          className="p-6 border-t border-border bg-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsPlaying(!isPlaying)}
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </Button>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsPlaying(!isPlaying)}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
+            </motion.div>
             <span className="text-sm font-medium w-12">1990</span>
             <Slider
               value={yearRange}
@@ -424,25 +544,37 @@ const DataVisualization = ({
             
             {/* Export Buttons */}
             <div className="flex items-center gap-1 ml-4 border-l border-border pl-4">
-              <Button variant="ghost" size="icon" title="Download">
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" title="Share">
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" title="Fullscreen">
-                <Maximize2 className="h-4 w-4" />
-              </Button>
+              {[
+                { icon: Download, title: "Download" },
+                { icon: Share2, title: "Share" },
+                { icon: Maximize2, title: "Fullscreen" }
+              ].map((btn, index) => (
+                <motion.div 
+                  key={btn.title}
+                  whileHover={{ scale: 1.1 }} 
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button variant="ghost" size="icon" title={btn.title}>
+                    <btn.icon className="h-4 w-4" />
+                  </Button>
+                </motion.div>
+              ))}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
+          <motion.p 
+            className="text-xs text-muted-foreground mt-2 text-center"
+            key={isComparing ? 'comparing-text' : 'single-text'}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
             {isComparing 
               ? `Comparing ${yearRange[0]} and ${yearRange[1]} • Double-click a thumb to remove` 
               : `Viewing ${yearRange[0]} • Click on the timeline to add a comparison year`}
-          </p>
-        </div>
+          </motion.p>
+        </motion.div>
       </Tabs>
-    </div>
+    </motion.div>
   );
 };
 
