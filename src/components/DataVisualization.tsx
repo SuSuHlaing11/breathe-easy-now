@@ -37,15 +37,27 @@ const DataVisualization = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const isComparing = yearRange.length === 2;
 
-  // Sample chart data for dual-axis visualization
-  const chartData = [
-    { year: '2018', healthValue: 50, pollutionValue: 22 },
-    { year: '2019', healthValue: 100, pollutionValue: 58 },
-    { year: '2020', healthValue: 30, pollutionValue: 25 },
-    { year: '2021', healthValue: 105, pollutionValue: 140 },
-    { year: '2022', healthValue: 85, pollutionValue: 95 },
-    { year: '2023', healthValue: 150, pollutionValue: 148 },
-  ];
+  // Generate chart data based on selected year
+  const generateChartData = (selectedYear: number) => {
+    const baseData = [
+      { year: '2018', healthValue: 50, pollutionValue: 22 },
+      { year: '2019', healthValue: 100, pollutionValue: 58 },
+      { year: '2020', healthValue: 30, pollutionValue: 25 },
+      { year: '2021', healthValue: 105, pollutionValue: 140 },
+      { year: '2022', healthValue: 85, pollutionValue: 95 },
+      { year: '2023', healthValue: 150, pollutionValue: 148 },
+    ];
+    // Add year-specific variation for comparison visualization
+    const yearOffset = (selectedYear - 2000) * 2;
+    return baseData.map(d => ({
+      ...d,
+      healthValue: Math.max(10, d.healthValue + yearOffset + Math.random() * 20 - 10),
+      pollutionValue: Math.max(10, d.pollutionValue + yearOffset * 0.5 + Math.random() * 15 - 7),
+    }));
+  };
+
+  const chartData1 = generateChartData(yearRange[0]);
+  const chartData2 = isComparing ? generateChartData(yearRange[1]) : [];
 
   const metricLabels: Record<string, string> = {
     rate: "Rate per 100,000",
@@ -233,20 +245,29 @@ const DataVisualization = ({
 
         {/* Line Chart View */}
         <TabsContent value="chart" className="flex-1 p-6 m-0">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Trend Analysis {isComparing && `(${yearRange[0]} vs ${yearRange[1]})`}</CardTitle>
+          <Card className="h-full border-border bg-muted/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between">
+                <span>Trend Analysis</span>
+                {isComparing && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    Comparing {yearRange[0]} vs {yearRange[1]}
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
-            <CardContent className={isComparing ? "h-[400px]" : "h-[400px]"}>
-              <div className={`flex ${isComparing ? 'gap-4' : ''} h-full`}>
+            <CardContent className="h-[400px]">
+              <div className={`flex ${isComparing ? 'gap-6' : ''} h-full`}>
                 {/* First Chart (or only chart) */}
-                <div className={`${isComparing ? 'flex-1' : 'w-full'} h-full flex flex-col`}>
+                <div className={`${isComparing ? 'flex-1' : 'w-full'} h-full flex flex-col bg-card rounded-xl p-4 shadow-sm`}>
                   {isComparing && (
-                    <h3 className="text-lg font-semibold text-center mb-2">{yearRange[0]}</h3>
+                    <div className="py-2 px-4 border-b border-border mb-2">
+                      <h3 className="text-lg font-semibold text-center text-foreground">{yearRange[0]}</h3>
+                    </div>
                   )}
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
-                      data={chartData}
+                      data={chartData1}
                       margin={{ top: 20, right: isComparing ? 20 : 60, left: 20, bottom: 20 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -291,8 +312,8 @@ const DataVisualization = ({
                         dataKey="healthValue" 
                         name={healthLabels[healthArea]}
                         fill="hsl(204, 70%, 53%)" 
-                        radius={[2, 2, 0, 0]}
-                        barSize={isComparing ? 20 : 40}
+                        radius={[4, 4, 0, 0]}
+                        barSize={isComparing ? 24 : 40}
                       />
                       <Line 
                         yAxisId="right" 
@@ -309,11 +330,13 @@ const DataVisualization = ({
 
                 {/* Second Chart (only when comparing) */}
                 {isComparing && (
-                  <div className="flex-1 h-full flex flex-col">
-                    <h3 className="text-lg font-semibold text-center mb-2">{yearRange[1]}</h3>
+                  <div className="flex-1 h-full flex flex-col bg-card rounded-xl p-4 shadow-sm">
+                    <div className="py-2 px-4 border-b border-border mb-2">
+                      <h3 className="text-lg font-semibold text-center text-foreground">{yearRange[1]}</h3>
+                    </div>
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart
-                        data={chartData}
+                        data={chartData2}
                         margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -346,8 +369,8 @@ const DataVisualization = ({
                           dataKey="healthValue" 
                           name={healthLabels[healthArea]}
                           fill="hsl(204, 70%, 53%)" 
-                          radius={[2, 2, 0, 0]}
-                          barSize={20}
+                          radius={[4, 4, 0, 0]}
+                          barSize={24}
                         />
                         <Line 
                           yAxisId="right" 
