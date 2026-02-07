@@ -8,23 +8,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Wind, User, ChevronDown, Save, History, Download, LogOut, Users } from "lucide-react";
+import { Wind, User, ChevronDown, LogOut, LayoutDashboard } from "lucide-react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   variant?: "landing" | "app";
   userRole?: "guest" | "user" | "admin";
 }
 
-const Header = ({ variant = "landing", userRole = "guest" }: HeaderProps) => {
+const Header = ({ variant = "landing" }: HeaderProps) => {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
+  const { isAuthenticated, role, logout, user } = useAuth();
 
   const handleLogout = () => {
+    logout();
     navigate("/");
   };
 
-  const MotionLink = prefersReducedMotion ? Link : motion(Link);
+  const displayName = user ? ((user as any).org_name || (user as any).name || "User") : "";
 
   return (
     <motion.header 
@@ -52,29 +55,36 @@ const Header = ({ variant = "landing", userRole = "guest" }: HeaderProps) => {
         <nav className="flex items-center gap-6">
           {variant === "landing" && (
             <motion.div 
-              className="flex items-center gap-6"
+              className="hidden md:flex items-center gap-6"
               initial={prefersReducedMotion ? {} : { opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
             >
               <motion.a
-                href="#about"
+                href="#announcements"
                 className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
                 whileHover={prefersReducedMotion ? {} : { y: -2 }}
               >
-                About
+                Announcements
               </motion.a>
               <motion.a
-                href="#contact"
+                href="#features"
                 className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
                 whileHover={prefersReducedMotion ? {} : { y: -2 }}
               >
-                Contact
+                Features
+              </motion.a>
+              <motion.a
+                href="#register"
+                className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
+                whileHover={prefersReducedMotion ? {} : { y: -2 }}
+              >
+                Register
               </motion.a>
             </motion.div>
           )}
 
-          {userRole === "guest" ? (
+          {!isAuthenticated ? (
             <motion.div 
               className="flex items-center gap-2"
               initial={prefersReducedMotion ? {} : { opacity: 0 }}
@@ -83,12 +93,7 @@ const Header = ({ variant = "landing", userRole = "guest" }: HeaderProps) => {
             >
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/signin">Sign In</Link>
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button size="sm" asChild>
-                  <Link to="/signup">Sign Up</Link>
+                  <Link to="/login">Login</Link>
                 </Button>
               </motion.div>
             </motion.div>
@@ -103,49 +108,21 @@ const Header = ({ variant = "landing", userRole = "guest" }: HeaderProps) => {
                     >
                       <User className="h-4 w-4 text-primary-foreground" />
                     </motion.div>
+                    <span className="hidden sm:inline max-w-[120px] truncate">{displayName}</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </motion.div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {userRole === "user" && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link to="/saved" className="flex items-center gap-2 cursor-pointer">
-                        <Save className="h-4 w-4" />
-                        Saved
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/history" className="flex items-center gap-2 cursor-pointer">
-                        <History className="h-4 w-4" />
-                        History
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/export" className="flex items-center gap-2 cursor-pointer">
-                        <Download className="h-4 w-4" />
-                        Export Data
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {userRole === "admin" && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin/users" className="flex items-center gap-2 cursor-pointer">
-                        <Users className="h-4 w-4" />
-                        User Management
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin/history" className="flex items-center gap-2 cursor-pointer">
-                        <History className="h-4 w-4" />
-                        History
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
+                <DropdownMenuItem asChild>
+                  <Link 
+                    to={role === "admin" ? "/admin" : "/dashboard"} 
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
