@@ -12,18 +12,54 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, Building2 } from "lucide-react";
-import { Organization } from "@/types/organization";
-import { mockOrganizations } from "@/data/mockData";
+import { listOrgs } from "@/lib/API";
+import { useToast } from "@/hooks/use-toast";
+
+interface OrgRow {
+  org_id: number;
+  org_name: string;
+  org_type: string;
+  data_domain: string;
+  country: string;
+  address_detail: string;
+  official_email: string;
+  contact_name: string;
+  contact_email: string;
+  status: string;
+  created_at: string;
+}
+
+const ORG_TYPE_LABELS: Record<string, string> = {
+  WEATHER_STATION: "Weather Station",
+  HOSPITAL: "Hospital",
+  RESEARCH_INSTITUTION: "Research",
+  GOVERNMENT: "Government",
+  OTHER: "Other",
+};
+
+const DATA_DOMAIN_LABELS: Record<string, string> = {
+  HEALTH: "Health Data",
+  POLLUTION: "Pollution Data",
+};
 
 const AdminOrganizations = () => {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const { toast } = useToast();
+  const [organizations, setOrganizations] = useState<OrgRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    // Load from localStorage and merge with mock data
-    const storedOrgs = JSON.parse(localStorage.getItem("organizations") || "[]");
-    setOrganizations([...mockOrganizations, ...storedOrgs]);
-  }, []);
+    const load = async () => {
+      try {
+        const data = await listOrgs();
+        setOrganizations(data || []);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load organizations.";
+        toast({ title: "Load failed", description: message, variant: "destructive" });
+      }
+    };
+    load();
+  }, [toast]);
 
   const filteredOrgs = organizations.filter(
     (org) =>
@@ -83,7 +119,7 @@ const AdminOrganizations = () => {
                   <TableBody>
                     {filteredOrgs.map((org, index) => (
                       <motion.tr
-                        key={org.id}
+                        key={org.org_id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
@@ -96,10 +132,14 @@ const AdminOrganizations = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{org.org_type}</Badge>
+                          <Badge variant="outline">
+                            {ORG_TYPE_LABELS[org.org_type] || org.org_type}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{org.data_domain}</Badge>
+                          <Badge variant="secondary">
+                            {DATA_DOMAIN_LABELS[org.data_domain] || org.data_domain}
+                          </Badge>
                         </TableCell>
                         <TableCell>{org.country}</TableCell>
                         <TableCell>

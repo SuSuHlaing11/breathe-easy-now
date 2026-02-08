@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Users, Database, Clock, TrendingUp, CheckCircle } from "lucide-react";
-import { mockOrganizationRequests, mockOrganizations, mockUploadRecords } from "@/data/mockData";
+import { Link } from "react-router-dom";
+import { mockUploadRecords } from "@/data/mockData";
+import { listOrgApplications, listOrgs } from "@/lib/API";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminOverview = () => {
+  const { toast } = useToast();
   const [stats, setStats] = useState({
     pendingRequests: 0,
     totalOrganizations: 0,
@@ -13,21 +17,36 @@ const AdminOverview = () => {
   });
 
   useEffect(() => {
-    // Get data from localStorage + mock data
-    const storedRequests = JSON.parse(localStorage.getItem("org_requests") || "[]");
-    const allRequests = [...mockOrganizationRequests, ...storedRequests];
-    const pendingRequests = allRequests.filter(r => r.status === "PENDING").length;
-
+    // Keep uploads + recent activity mocked for now
     const storedUploads = JSON.parse(localStorage.getItem("upload_records") || "[]");
     const totalUploads = mockUploadRecords.length + storedUploads.length;
 
-    setStats({
-      pendingRequests,
-      totalOrganizations: mockOrganizations.length,
-      totalUploads,
-      recentActivity: 12,
-    });
-  }, []);
+    const loadCounts = async () => {
+      try {
+        const [pending, orgs] = await Promise.all([
+          listOrgApplications("PENDING"),
+          listOrgs(),
+        ]);
+        setStats({
+          pendingRequests: Array.isArray(pending) ? pending.length : 0,
+          totalOrganizations: Array.isArray(orgs) ? orgs.length : 0,
+          totalUploads,
+          recentActivity: 12,
+        });
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load overview stats.";
+        toast({ title: "Load failed", description: message, variant: "destructive" });
+        setStats((prev) => ({
+          ...prev,
+          totalUploads,
+          recentActivity: 12,
+        }));
+      }
+    };
+
+    loadCounts();
+  }, [toast]);
 
   const statCards = [
     {
@@ -104,44 +123,47 @@ const AdminOverview = () => {
           </CardHeader>
           <CardContent>
             <div className="grid sm:grid-cols-3 gap-4">
-              <motion.a
-                href="/admin/requests"
+              <motion.div
                 className="p-4 rounded-lg border hover:border-primary hover:bg-secondary/50 transition-colors block"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <FileText className="h-8 w-8 text-primary mb-2" />
-                <h4 className="font-medium text-foreground">Review Requests</h4>
-                <p className="text-sm text-muted-foreground">
-                  {stats.pendingRequests} pending
-                </p>
-              </motion.a>
+                <Link to="/admin/requests" className="block">
+                  <FileText className="h-8 w-8 text-primary mb-2" />
+                  <h4 className="font-medium text-foreground">Review Requests</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.pendingRequests} pending
+                  </p>
+                </Link>
+              </motion.div>
 
-              <motion.a
-                href="/admin/create-user"
+              <motion.div
                 className="p-4 rounded-lg border hover:border-primary hover:bg-secondary/50 transition-colors block"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Users className="h-8 w-8 text-primary mb-2" />
-                <h4 className="font-medium text-foreground">Create User</h4>
-                <p className="text-sm text-muted-foreground">
-                  Add new admin or org
-                </p>
-              </motion.a>
+                <Link to="/admin/create-user" className="block">
+                  <Users className="h-8 w-8 text-primary mb-2" />
+                  <h4 className="font-medium text-foreground">Create User</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Add new admin or org
+                  </p>
+                </Link>
+              </motion.div>
 
-              <motion.a
-                href="/admin/data"
+              <motion.div
                 className="p-4 rounded-lg border hover:border-primary hover:bg-secondary/50 transition-colors block"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Database className="h-8 w-8 text-primary mb-2" />
-                <h4 className="font-medium text-foreground">View Data</h4>
-                <p className="text-sm text-muted-foreground">
-                  {stats.totalUploads} uploads
-                </p>
-              </motion.a>
+                <Link to="/admin/data" className="block">
+                  <Database className="h-8 w-8 text-primary mb-2" />
+                  <h4 className="font-medium text-foreground">View Data</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.totalUploads} uploads
+                  </p>
+                </Link>
+              </motion.div>
             </div>
           </CardContent>
         </Card>

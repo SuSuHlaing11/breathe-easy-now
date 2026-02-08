@@ -4,19 +4,44 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wind, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { login } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login - navigate to analysis with appropriate role
-    const role = isAdmin ? "admin" : "user";
-    navigate(`/analysis?role=${role}`);
+    setIsLoading(true);
+    const result = await login(email, password);
+    if (result.success) {
+      const stored = localStorage.getItem("airhealth_auth");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
+      }
+      toast({
+        title: "Login successful",
+        description: "Welcome back.",
+      });
+    } else {
+      toast({
+        title: "Login failed",
+        description: result.error || "Login failed",
+        variant: "destructive",
+      });
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -67,21 +92,8 @@ const SignIn = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="admin"
-                  checked={isAdmin}
-                  onChange={(e) => setIsAdmin(e.target.checked)}
-                  className="rounded border-border"
-                />
-                <label htmlFor="admin" className="text-sm text-muted-foreground">
-                  Sign in as Administrator
-                </label>
-              </div>
-
               <Button type="submit" className="w-full">
-                Sign In
+                {isLoading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
 

@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Upload, X, FileText, CheckCircle2, Building2 } from "lucide-react";
 import { countries, orgTypes, dataDomains } from "@/data/countries";
 import { useToast } from "@/hooks/use-toast";
+import { submitOrgApplication, uploadOrgApplicationFile } from "@/lib/API";
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -38,6 +39,19 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+const ORG_TYPE_MAP: Record<FormData["org_type"], string> = {
+  "Weather Station": "WEATHER_STATION",
+  "Hospital": "HOSPITAL",
+  "Research": "RESEARCH_INSTITUTION",
+  "Government": "GOVERNMENT",
+  "Other": "OTHER",
+};
+
+const DATA_DOMAIN_MAP: Record<FormData["data_domain"], string> = {
+  "Health Data": "HEALTH",
+  "Pollution Data": "POLLUTION",
+};
 
 const OrganizationRequestForm = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -102,29 +116,45 @@ const OrganizationRequestForm = () => {
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const requestData = {
-      ...data,
-      proof_files: files.map(f => f.name),
-      status: "PENDING",
-      submitted_at: new Date().toISOString(),
-    };
+    try {
+      const payload = {
+        org_name: data.org_name,
+        org_type: ORG_TYPE_MAP[data.org_type],
+        data_domain: DATA_DOMAIN_MAP[data.data_domain],
+        country: data.country,
+        address_detail: data.address_detail,
+        official_email: data.official_email,
+        website: data.website || undefined,
+        contact_name: data.contact_name,
+        contact_email: data.contact_email,
+      };
 
-    // Store in localStorage for demo
-    const existingRequests = JSON.parse(localStorage.getItem("org_requests") || "[]");
-    existingRequests.push({ id: `req-${Date.now()}`, ...requestData });
-    localStorage.setItem("org_requests", JSON.stringify(existingRequests));
+      const created = await submitOrgApplication(payload);
 
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    
-    toast({
-      title: "Request Submitted",
-      description: "Your organization request has been submitted for review.",
-    });
+      if (files.length > 0) {
+        for (const file of files) {
+          await uploadOrgApplicationFile(created.application_id, file);
+        }
+      }
+
+      setIsSubmitted(true);
+      toast({
+        title: "Request Submitted",
+        description: "Your organization request has been submitted for review.",
+      });
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Failed to submit request. Please try again.";
+      toast({
+        title: "Submission failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {

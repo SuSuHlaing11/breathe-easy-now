@@ -19,11 +19,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserPlus, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { countries, orgTypes, dataDomains } from "@/data/countries";
+import { createAdminUser, createOrgUser } from "@/lib/API";
 
 const adminSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const orgSchema = z.object({
@@ -32,7 +32,6 @@ const orgSchema = z.object({
   data_domain: z.enum(["Health Data", "Pollution Data"]),
   country: z.string().min(1, "Country is required"),
   official_email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
   address_detail: z.string().min(10, "Address is required"),
   contact_name: z.string().min(2, "Contact name is required"),
   contact_email: z.string().email("Invalid contact email"),
@@ -57,56 +56,80 @@ const AdminCreateUser = () => {
 
   const handleAdminSubmit = async (data: AdminFormData) => {
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const newAdmin = {
-      id: `admin-${Date.now()}`,
-      ...data,
-      role: "admin",
-      created_at: new Date().toISOString(),
-    };
-
-    const existingAdmins = JSON.parse(localStorage.getItem("admin_users") || "[]");
-    existingAdmins.push(newAdmin);
-    localStorage.setItem("admin_users", JSON.stringify(existingAdmins));
-
-    setIsSubmitting(false);
-    setShowSuccess(true);
-    adminForm.reset();
-
-    toast({
-      title: "Admin Created",
-      description: `Admin account for ${data.name} has been created.`,
-    });
-
-    setTimeout(() => setShowSuccess(false), 3000);
+    try {
+      const res = await createAdminUser({ name: data.name, email: data.email });
+      if (res?.status === "exists") {
+        toast({
+          title: "Already exists",
+          description: "An account with this email already exists.",
+          variant: "destructive",
+        });
+      } else {
+        setShowSuccess(true);
+        adminForm.reset();
+        toast({
+          title: "Admin Created",
+          description: `Credentials have been emailed to ${data.email}.`,
+        });
+        setTimeout(() => setShowSuccess(false), 3000);
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Failed to create admin.";
+      toast({
+        title: "Create failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOrgSubmit = async (data: OrgFormData) => {
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const payload = {
+        org_name: data.org_name,
+        org_type: data.org_type === "Weather Station" ? "WEATHER_STATION" :
+          data.org_type === "Hospital" ? "HOSPITAL" :
+          data.org_type === "Research" ? "RESEARCH_INSTITUTION" :
+          data.org_type === "Government" ? "GOVERNMENT" : "OTHER",
+        data_domain: data.data_domain === "Health Data" ? "HEALTH" : "POLLUTION",
+        country: data.country,
+        official_email: data.official_email,
+        address_detail: data.address_detail,
+        contact_name: data.contact_name,
+        contact_email: data.contact_email,
+      };
 
-    const newOrg = {
-      id: `org-${Date.now()}`,
-      ...data,
-      website: "",
-      created_at: new Date().toISOString(),
-    };
-
-    const existingOrgs = JSON.parse(localStorage.getItem("organizations") || "[]");
-    existingOrgs.push(newOrg);
-    localStorage.setItem("organizations", JSON.stringify(existingOrgs));
-
-    setIsSubmitting(false);
-    setShowSuccess(true);
-    orgForm.reset();
-
-    toast({
-      title: "Organization Created",
-      description: `Account for ${data.org_name} has been created.`,
-    });
-
-    setTimeout(() => setShowSuccess(false), 3000);
+      const res = await createOrgUser(payload);
+      if (res?.status === "exists") {
+        toast({
+          title: "Already exists",
+          description: "An account with this email already exists.",
+          variant: "destructive",
+        });
+      } else {
+        setShowSuccess(true);
+        orgForm.reset();
+        toast({
+          title: "Organization Created",
+          description: `Credentials have been emailed to ${data.official_email}.`,
+        });
+        setTimeout(() => setShowSuccess(false), 3000);
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Failed to create organization.";
+      toast({
+        title: "Create failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -184,19 +207,6 @@ const AdminCreateUser = () => {
                     />
                     {adminForm.formState.errors.email && (
                       <p className="text-sm text-destructive">{adminForm.formState.errors.email.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
-                    <Input
-                      id="admin-password"
-                      type="password"
-                      {...adminForm.register("password")}
-                      className={adminForm.formState.errors.password ? "border-destructive" : ""}
-                    />
-                    {adminForm.formState.errors.password && (
-                      <p className="text-sm text-destructive">{adminForm.formState.errors.password.message}</p>
                     )}
                   </div>
 
@@ -312,13 +322,11 @@ const AdminCreateUser = () => {
                     <div className="space-y-2">
                       <Label>Password</Label>
                       <Input
-                        type="password"
-                        {...orgForm.register("password")}
-                        className={orgForm.formState.errors.password ? "border-destructive" : ""}
+                        type="text"
+                        value="Auto-generated and emailed"
+                        readOnly
+                        className="text-muted-foreground"
                       />
-                      {orgForm.formState.errors.password && (
-                        <p className="text-sm text-destructive">{orgForm.formState.errors.password.message}</p>
-                      )}
                     </div>
                   </div>
 

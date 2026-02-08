@@ -4,6 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,67 +31,92 @@ import {
 } from "@/components/ui/table";
 import { Check, X, Eye, Building2, Globe, Mail, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { OrganizationRequest } from "@/types/organization";
-import { mockOrganizationRequests } from "@/data/mockData";
+import { OrgApplication } from "@/types/organization";
+import {
+  listOrgApplications,
+  reviewOrgApplication,
+  listOrgApplicationFiles,
+} from "@/lib/API";
+
+const ORG_TYPE_LABELS: Record<string, string> = {
+  WEATHER_STATION: "Weather Station",
+  HOSPITAL: "Hospital",
+  RESEARCH_INSTITUTION: "Research",
+  GOVERNMENT: "Government",
+  OTHER: "Other",
+};
+
+const DATA_DOMAIN_LABELS: Record<string, string> = {
+  HEALTH: "Health Data",
+  POLLUTION: "Pollution Data",
+};
 
 const AdminRequests = () => {
   const { toast } = useToast();
-  const [requests, setRequests] = useState<OrganizationRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<OrganizationRequest | null>(null);
+  const [requests, setRequests] = useState<OrgApplication[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<OrgApplication | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingApprove, setPendingApprove] = useState<OrgApplication | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
 
   useEffect(() => {
-    // Load from localStorage and merge with mock data
-    const storedRequests = JSON.parse(localStorage.getItem("org_requests") || "[]");
-    setRequests([...mockOrganizationRequests, ...storedRequests]);
-  }, []);
-
-  const handleApprove = (request: OrganizationRequest) => {
-    const updatedRequests = requests.map((r) =>
-      r.id === request.id ? { ...r, status: "APPROVED" as const } : r
-    );
-    setRequests(updatedRequests);
-    
-    // Create organization account
-    const newOrg = {
-      id: `org-${Date.now()}`,
-      org_name: request.org_name,
-      org_type: request.org_type,
-      data_domain: request.data_domain,
-      country: request.country,
-      address_detail: request.address_detail,
-      official_email: request.official_email,
-      website: request.website,
-      contact_name: request.contact_name,
-      contact_email: request.contact_email,
-      password: "welcome123",
-      created_at: new Date().toISOString(),
+    const load = async () => {
+      try {
+        const data = await listOrgApplications();
+        setRequests(data);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load requests.";
+        toast({ title: "Load failed", description: message, variant: "destructive" });
+      }
     };
+    load();
+  }, [toast]);
 
-    const existingOrgs = JSON.parse(localStorage.getItem("organizations") || "[]");
-    existingOrgs.push(newOrg);
-    localStorage.setItem("organizations", JSON.stringify(existingOrgs));
-
-    toast({
-      title: "Request Approved",
-      description: `${request.org_name} has been approved. Login credentials sent to ${request.official_email}.`,
-    });
-
-    setDetailsOpen(false);
+  const handleApprove = async (request: OrgApplication) => {
+    setIsApproving(true);
+    try {
+      const updated = await reviewOrgApplication(request.application_id, {
+        status: "APPROVED",
+      });
+      setRequests((prev) =>
+        prev.map((r) => (r.application_id === updated.application_id ? updated : r))
+      );
+      toast({
+        title: "Request Approved",
+        description: `${request.org_name} has been approved.`,
+      });
+      setConfirmOpen(false);
+      setPendingApprove(null);
+      setDetailsOpen(false);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Failed to approve request.";
+      toast({ title: "Approve failed", description: message, variant: "destructive" });
+    } finally {
+      setIsApproving(false);
+    }
   };
 
-  const handleReject = (request: OrganizationRequest) => {
-    const updatedRequests = requests.map((r) =>
-      r.id === request.id ? { ...r, status: "REJECTED" as const } : r
-    );
-    setRequests(updatedRequests);
-
-    toast({
-      title: "Request Rejected",
-      description: `${request.org_name}'s request has been rejected.`,
-    });
-
-    setDetailsOpen(false);
+  const handleReject = async (request: OrgApplication) => {
+    try {
+      const updated = await reviewOrgApplication(request.application_id, {
+        status: "REJECTED",
+      });
+      setRequests((prev) =>
+        prev.map((r) => (r.application_id === updated.application_id ? updated : r))
+      );
+      toast({
+        title: "Request Rejected",
+        description: `${request.org_name}'s request has been rejected.`,
+      });
+      setDetailsOpen(false);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Failed to reject request.";
+      toast({ title: "Reject failed", description: message, variant: "destructive" });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -141,14 +176,14 @@ const AdminRequests = () => {
                   <TableBody>
                     {pendingRequests.map((request, index) => (
                       <motion.tr
-                        key={request.id}
+                        key={request.application_id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
                         className="border-b"
                       >
                         <TableCell className="font-medium">{request.org_name}</TableCell>
-                        <TableCell>{request.org_type}</TableCell>
+                        <TableCell>{ORG_TYPE_LABELS[request.org_type] || request.org_type}</TableCell>
                         <TableCell>{request.country}</TableCell>
                         <TableCell>
                           {new Date(request.submitted_at).toLocaleDateString()}
@@ -201,9 +236,9 @@ const AdminRequests = () => {
                   </TableHeader>
                   <TableBody>
                     {processedRequests.map((request) => (
-                      <TableRow key={request.id}>
+                      <TableRow key={request.application_id}>
                         <TableCell className="font-medium">{request.org_name}</TableCell>
-                        <TableCell>{request.org_type}</TableCell>
+                        <TableCell>{ORG_TYPE_LABELS[request.org_type] || request.org_type}</TableCell>
                         <TableCell>{request.country}</TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                         <TableCell>
@@ -237,11 +272,15 @@ const AdminRequests = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Organization Type</p>
-                  <p className="font-medium">{selectedRequest.org_type}</p>
+                  <p className="font-medium">
+                    {ORG_TYPE_LABELS[selectedRequest.org_type] || selectedRequest.org_type}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Data Domain</p>
-                  <p className="font-medium">{selectedRequest.data_domain}</p>
+                  <p className="font-medium">
+                    {DATA_DOMAIN_LABELS[selectedRequest.data_domain] || selectedRequest.data_domain}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Country</p>
@@ -279,18 +318,7 @@ const AdminRequests = () => {
                 </div>
               </div>
 
-              {selectedRequest.proof_files.length > 0 && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Proof Documents</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedRequest.proof_files.map((file, index) => (
-                      <Badge key={index} variant="outline">
-                        {file}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <ProofFiles applicationId={selectedRequest.application_id} />
 
               <div className="text-sm text-muted-foreground">
                 Submitted: {new Date(selectedRequest.submitted_at).toLocaleString()}
@@ -307,7 +335,12 @@ const AdminRequests = () => {
               Reject
             </Button>
             <Button
-              onClick={() => selectedRequest && handleApprove(selectedRequest)}
+              onClick={() => {
+                if (selectedRequest) {
+                  setPendingApprove(selectedRequest);
+                  setConfirmOpen(true);
+                }
+              }}
             >
               <Check className="h-4 w-4 mr-1" />
               Approve
@@ -315,8 +348,80 @@ const AdminRequests = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create an organization account and send login credentials
+              to {pendingApprove?.official_email}. Proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingApprove) {
+                  handleApprove(pendingApprove);
+                }
+              }}
+              disabled={isApproving}
+            >
+              {isApproving ? "Approving..." : "Yes, approve"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export default AdminRequests;
+
+const ProofFiles = ({ applicationId }: { applicationId: number }) => {
+  const [files, setFiles] = useState<Array<{ file_name: string }>>([]);
+  const [loaded, setLoaded] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await listOrgApplicationFiles(applicationId);
+        setFiles(data || []);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load proof files.";
+        toast({ title: "Files load failed", description: message, variant: "destructive" });
+      } finally {
+        setLoaded(true);
+      }
+    };
+    load();
+  }, [applicationId, toast]);
+
+  if (!loaded) {
+    return (
+      <div className="text-sm text-muted-foreground">Loading proof documents...</div>
+    );
+  }
+
+  if (files.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground">No proof documents uploaded.</div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-sm text-muted-foreground mb-2">Proof Documents</p>
+      <div className="flex flex-wrap gap-2">
+        {files.map((file, index) => (
+          <Badge key={`${file.file_name}-${index}`} variant="outline">
+            {file.file_name}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+};

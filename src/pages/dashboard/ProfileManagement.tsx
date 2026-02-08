@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Globe, MapPin, User, CheckCircle2 } from "lucide-react";
+import { Building2, Mail, Globe, MapPin, User, CheckCircle2, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Organization } from "@/types/organization";
+import { Link } from "react-router-dom";
 
 const profileSchema = z.object({
   contact_name: z.string().min(2, "Contact name is required").max(100),
@@ -125,6 +126,14 @@ const ProfileManagement = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link to="/dashboard/password">
+                  <Lock className="h-4 w-4 mr-2" />
+                  Change Password
+                </Link>
+              </Button>
+            </div>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">

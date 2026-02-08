@@ -17,6 +17,23 @@ export interface OrganizationRequest {
   submitted_at: string;
 }
 
+export interface OrgApplication {
+  application_id: number;
+  org_name: string;
+  org_type: string;
+  data_domain: string;
+  country: string;
+  address_detail: string;
+  official_email: string;
+  website?: string | null;
+  contact_name: string;
+  contact_email: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  admin_note?: string | null;
+  submitted_at: string;
+  reviewed_at?: string | null;
+}
+
 export interface Organization {
   id: string;
   org_name: string;

@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Wind, LogIn, AlertCircle } from "lucide-react";
+import { Wind, LogIn, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { demoCredentials } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -24,6 +25,8 @@ const Login = () => {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
 
   const {
     register,
@@ -40,7 +43,6 @@ const Login = () => {
     const result = await login(data.email, data.password);
 
     if (result.success) {
-      // Redirect based on role
       const stored = localStorage.getItem("airhealth_auth");
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -50,8 +52,17 @@ const Login = () => {
           navigate("/dashboard");
         }
       }
+      toast({
+        title: "Login successful",
+        description: "Welcome back.",
+      });
     } else {
       setError(result.error || "Login failed");
+      toast({
+        title: "Login failed",
+        description: result.error || "Login failed",
+        variant: "destructive",
+      });
     }
 
     setIsLoading(false);
@@ -103,6 +114,7 @@ const Login = () => {
                   id="email"
                   type="email"
                   placeholder="your@email.com"
+                  autoComplete="email"
                   {...register("email")}
                   className={errors.email ? "border-destructive" : ""}
                 />
@@ -113,13 +125,24 @@ const Login = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  {...register("password")}
-                  className={errors.password ? "border-destructive" : ""}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    {...register("password")}
+                    className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password.message}</p>
                 )}
@@ -156,6 +179,11 @@ const Login = () => {
             </div>
 
             <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                <Link to="/forgot-password" className="text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </p>
               <p className="text-sm text-muted-foreground">
                 Don't have access?{" "}
                 <Link to="/#register" className="text-primary hover:underline">

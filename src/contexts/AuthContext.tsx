@@ -1,13 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Organization, AdminUser } from "@/types/organization";
-import { mockOrganizations, mockAdminUsers, demoCredentials } from "@/data/mockData";
-
-type UserRole = "guest" | "organization" | "admin";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { Organization } from "@/types/organization";
+import { Account, UserRole } from "@/types/auth";
+import { getAuthMe, getMyOrg, loginUser } from "@/lib/API";
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: Organization | AdminUser | null;
+  user: Organization | Account | null;
   role: UserRole;
+  account: Account | null;
 }
 
 interface AuthContextType extends AuthState {
@@ -19,69 +19,99 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = "airhealth_auth";
+const ACCESS_TOKEN_KEY = "access_token";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     user: null,
-    role: "guest"
+    role: "guest",
+    account: null,
   });
 
-  // Load auth state from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (!token) return;
+
+    const hydrate = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        setAuthState(parsed);
+        const account = await getAuthMe();
+        let role: UserRole = account.role === "ADMIN" ? "admin" : "organization";
+        let user: Organization | Account = account;
+
+        if (role === "organization") {
+          try {
+            const org = await getMyOrg();
+            user = org;
+          } catch {
+            user = account;
+          }
+        }
+
+        const state: AuthState = {
+          isAuthenticated: true,
+          user,
+          role,
+          account,
+        };
+        persistAuthState(state);
       } catch {
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
-    }
+    };
+
+    hydrate();
   }, []);
 
-  // Persist auth state to localStorage
   const persistAuthState = (state: AuthState) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
     setAuthState(state);
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Check admin credentials
-    if (email === demoCredentials.admin.email && password === demoCredentials.admin.password) {
-      const admin = mockAdminUsers.find(a => a.email === email);
-      if (admin) {
-        const newState: AuthState = {
-          isAuthenticated: true,
-          user: admin,
-          role: "admin"
-        };
-        persistAuthState(newState);
-        return { success: true };
+    try {
+      const tokenResp = await loginUser({ email, password });
+      if (!tokenResp?.access_token) {
+        return { success: false, error: "Login failed" };
       }
-    }
+      localStorage.setItem(ACCESS_TOKEN_KEY, tokenResp.access_token);
 
-    // Check organization credentials
-    const org = mockOrganizations.find(o => o.official_email === email && o.password === password);
-    if (org) {
+      const account = await getAuthMe();
+      let role: UserRole = account.role === "ADMIN" ? "admin" : "organization";
+      let user: Organization | Account = account;
+
+      if (role === "organization") {
+        try {
+          const org = await getMyOrg();
+          user = org;
+        } catch {
+          user = account;
+        }
+      }
+
       const newState: AuthState = {
         isAuthenticated: true,
-        user: org,
-        role: "organization"
+        user,
+        role,
+        account,
       };
       persistAuthState(newState);
       return { success: true };
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || err?.message || "Invalid email or password";
+      return { success: false, error: message };
     }
-
-    return { success: false, error: "Invalid email or password" };
   };
 
   const logout = () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuthState({
       isAuthenticated: false,
       user: null,
-      role: "guest"
+      role: "guest",
+      account: null,
     });
   };
 
@@ -90,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const updatedUser = { ...authState.user, ...updates } as Organization;
       const newState: AuthState = {
         ...authState,
-        user: updatedUser
+        user: updatedUser,
       };
       persistAuthState(newState);
     }
