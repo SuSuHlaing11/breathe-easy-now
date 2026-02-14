@@ -216,3 +216,14 @@
     transform: translateX(0);
   }
 }
+
+/* Hide scrollbars but keep scrolling */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

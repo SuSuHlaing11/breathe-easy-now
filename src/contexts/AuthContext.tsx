@@ -22,11 +22,33 @@ const AUTH_STORAGE_KEY = "airhealth_auth";
 const ACCESS_TOKEN_KEY = "access_token";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    user: null,
-    role: "guest",
-    account: null,
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (token && stored) {
+      try {
+        const parsed = JSON.parse(stored) as AuthState;
+        return {
+          isAuthenticated: !!parsed.isAuthenticated,
+          user: parsed.user ?? null,
+          role: parsed.role ?? "guest",
+          account: parsed.account ?? null,
+        };
+      } catch {
+        return {
+          isAuthenticated: false,
+          user: null,
+          role: "guest",
+          account: null,
+        };
+      }
+    }
+    return {
+      isAuthenticated: false,
+      user: null,
+      role: "guest",
+      account: null,
+    };
   });
 
   useEffect(() => {

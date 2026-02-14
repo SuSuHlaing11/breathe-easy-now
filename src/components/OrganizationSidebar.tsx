@@ -210,7 +210,6 @@ const OrganizationSidebar = ({ children }: OrganizationSidebarProps) => {
           !isOpen && "md:ml-16",
           "pt-14 md:pt-0"
         )}
-        style={{ marginLeft: isOpen ? 256 : 64 }}
       >
         <div className="p-6">{children}</div>
       </main>

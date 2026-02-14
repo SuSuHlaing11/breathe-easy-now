@@ -30,6 +30,7 @@ Mark items as `done` / `blocked` / `missing`.
 
 ## 6. Data Views
 - [ ] Analysis page wired to backend/analytics.
+- [ ] Analysis line chart: add health + pollution trend with user-selectable Line/Bar mapping (dropdown/modal).
 - [ ] Prediction page wired to backend/AI.
 - [ ] Health map uses country name matching (upgrade to ISO later).
 - [ ] Age group filter sourced from IMHE.

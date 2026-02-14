@@ -114,6 +114,16 @@ const attachInterceptors = (instance: ReturnType<typeof axios.create>, label = "
       console.groupEnd();
 
       DebugBus.push(errInfo);
+
+      if (res?.status === 401) {
+        // Auto-logout on unauthorized responses
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("airhealth_auth");
+        const current = window.location.pathname;
+        if (!current.startsWith("/login")) {
+          window.location.href = "/login";
+        }
+      }
       return Promise.reject(error);
     }
   );
@@ -237,3 +247,94 @@ export const getIMHECauses = async (params?: {
   sex_name?: string;
   location_name?: string;
 }) => (await api.get("/health/imhe/causes", { params })).data;
+
+export const getIMHEMeasures = async (params?: {
+  year?: number;
+  cause_name?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/measures", { params })).data;
+
+export const getIMHEMetrics = async (params?: {
+  year?: number;
+  cause_name?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/metrics", { params })).data;
+
+export const getIMHETrend = async (params?: {
+  measure_name?: string;
+  cause_name?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/trend", { params })).data;
+
+export const getIMHESummary = async () => (await api.get("/health/imhe/summary")).data;
+
+export const getIMHEPercentiles = async (params?: {
+  p?: number[];
+  dense_years?: boolean;
+  min_countries?: number;
+  year_from?: number;
+  year_to?: number;
+  measure_name?: string;
+  metric_name?: string;
+  cause_name?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/percentiles", { params })).data;
+
+/* ===============================
+   HEALTH UPLOADS (IMHE)
+=============================== */
+export const uploadIMHECSVValidate = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return (await api.post("/uploads/health/csv/validate", formData)).data;
+};
+
+export const uploadIMHECSVConfirm = async (token: string) =>
+  (await api.post("/uploads/health/csv/confirm", null, { params: { token } })).data;
+
+export const listUploadDupes = async (token: string, params?: { limit?: number; offset?: number }) =>
+  (await api.get("/uploads/health/csv/dupes", { params: { token, ...(params || {}) } })).data;
+
+export const uploadIMHERecord = async (payload: {
+  measure_name: string;
+  location_name: string;
+  sex_name: string;
+  age_name: string;
+  cause_name: string;
+  metric_name: string;
+  year: number;
+  val: number;
+  upper?: number;
+  lower?: number;
+}) => (await api.post("/uploads/health/record", payload)).data;
+
+/* ===============================
+   UPLOADS
+=============================== */
+export const listUploads = async () => (await api.get("/uploads")).data;
+
+export const listUploadRecords = async (uploadId: number, params?: { limit?: number; offset?: number }) =>
+  (await api.get(`/uploads/${uploadId}/records`, { params })).data;
+
+export const updateUploadRecord = async (uploadId: number, recordId: string, payload: {
+  measure_name: string;
+  sex_name: string;
+  age_name: string;
+  cause_name: string;
+  metric_name: string;
+  year: number;
+  val: number;
+  upper?: number;
+  lower?: number;
+}) => (await api.patch(`/uploads/${uploadId}/records/${recordId}`, payload)).data;
+
+export const deleteUpload = async (uploadId: number) =>
+  (await api.delete(`/uploads/${uploadId}`)).data;

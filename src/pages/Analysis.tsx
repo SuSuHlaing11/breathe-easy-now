@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import CountrySidebar from "@/components/CountrySidebar";
 import AnalysisFilters from "@/components/AnalysisFilters";
 import DataVisualization from "@/components/DataVisualization";
-import { getIMHEAges, getIMHESexes, getIMHECauses } from "@/lib/API";
+import { getIMHEAges, getIMHESexes, getIMHECauses, getIMHESummary } from "@/lib/API";
 import { measureNameMap } from "@/lib/imheFilters";
 
 const EXCLUDED_AGE_NAMES = new Set([
@@ -36,11 +36,20 @@ const ageSortKey = (name: string) => {
   return { start: 9999, end: 9999 };
 };
 
+const DEFAULT_SELECTED_COUNTRIES = [
+  "Indonesia",
+  "Lao People's Democratic Republic",
+  "Myanmar",
+  "Philippines",
+  "Thailand",
+  "Viet Nam",
+];
+
 const Analysis = () => {
   const [searchParams] = useSearchParams();
   const role = (searchParams.get("role") as "user" | "admin") || "user";
   
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(DEFAULT_SELECTED_COUNTRIES);
   const [pollutionType, setPollutionType] = useState("pm25");
   const [healthArea, setHealthArea] = useState("all");
   const [metric, setMetric] = useState("rate");
@@ -50,6 +59,42 @@ const Analysis = () => {
   const [sexOptions, setSexOptions] = useState<Array<{ sex_id: number; sex_name: string }>>([]);
   const [causeName, setCauseName] = useState("all");
   const [causeOptions, setCauseOptions] = useState<Array<{ cause_id: number; cause_name: string }>>([]);
+  const [yearRange, setYearRange] = useState<number[]>([2020]);
+  const [minYear, setMinYear] = useState<number>(2020);
+  const [maxYear, setMaxYear] = useState<number>(2023);
+
+  const resetFilters = () => {
+    setPollutionType("pm25");
+    setHealthArea("all");
+    setMetric("rate");
+    setAgeName("all");
+    setSexName("all");
+    setCauseName("all");
+    setYearRange([maxYear]);
+  };
+
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        const summary = await getIMHESummary();
+        const min = Number(summary?.min_year);
+        const max = Number(summary?.max_year);
+        if (Number.isFinite(min) && Number.isFinite(max)) {
+          setMinYear(min);
+          setMaxYear(max);
+          setYearRange((prev) => {
+            const next = prev.length ? prev : [max];
+            return next
+              .map((y) => Math.min(Math.max(y, min), max))
+              .sort((a, b) => a - b);
+          });
+        }
+      } catch {
+        // keep defaults
+      }
+    };
+    loadSummary();
+  }, []);
 
   useEffect(() => {
     const loadAges = async () => {
@@ -138,6 +183,7 @@ const Analysis = () => {
           onAgeChange={setAgeName}
           onSexChange={setSexName}
           onCauseChange={setCauseName}
+          onResetFilters={resetFilters}
         />
           
           <DataVisualization
@@ -148,6 +194,10 @@ const Analysis = () => {
             ageName={ageName}
             sexName={sexName}
             causeName={causeName}
+            yearRange={yearRange}
+            minYear={minYear}
+            maxYear={maxYear}
+            onYearRangeChange={setYearRange}
           />
         </div>
       </div>

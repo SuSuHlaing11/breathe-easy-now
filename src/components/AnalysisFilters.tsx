@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface AnalysisFiltersProps {
   pollutionType: string;
@@ -22,6 +23,7 @@ interface AnalysisFiltersProps {
   onAgeChange: (value: string) => void;
   onSexChange: (value: string) => void;
   onCauseChange: (value: string) => void;
+  onResetFilters: () => void;
 }
 
 const pollutionTypes = [
@@ -56,9 +58,10 @@ const AnalysisFilters = ({
   onAgeChange,
   onSexChange,
   onCauseChange,
+  onResetFilters,
 }: AnalysisFiltersProps) => {
   return (
-    <div className="relative z-50 flex flex-wrap gap-4 p-4 bg-card border-b border-border">
+    <div className="relative z-50 flex flex-wrap gap-4 p-4 bg-card border-b border-border items-end">
       <div className="flex-1 min-w-[180px]">
         <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
           Air Pollution
@@ -150,6 +153,12 @@ const AnalysisFilters = ({
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="ml-auto flex items-center">
+        <Button variant="outline" size="sm" onClick={onResetFilters}>
+          Reset Filters
+        </Button>
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ interface LeafletMapProps {
   year: number;
   metricLabel?: string;
   dataByCountry: Record<string, number>;
+  scaleMin?: number;
+  scaleMax?: number;
   isLoading?: boolean;
   isActive?: boolean;
 }
@@ -37,15 +39,16 @@ const normalizeCountryName = (value: string) => {
 const getColor = (value: number, min: number, max: number): string => {
   if (!Number.isFinite(value) || max <= min) return "hsl(0, 0%, 90%)";
   const safeValue = Math.max(value, 0);
-  const logMin = Math.log10(Math.max(min, 1));
-  const logMax = Math.log10(Math.max(max, 1));
-  const logVal = Math.log10(Math.max(safeValue, 1));
+  const logMin = Math.log10(Math.max(min, 0) + 1);
+  const logMax = Math.log10(Math.max(max, 0) + 1);
+  const logVal = Math.log10(safeValue + 1);
   const ratio = logMax > logMin ? (logVal - logMin) / (logMax - logMin) : 0;
-  if (ratio <= 0.2) return "#FEF3E2";
-  if (ratio <= 0.4) return "#FDDFB8";
-  if (ratio <= 0.6) return "#FCCC8A";
-  if (ratio <= 0.8) return "#FC8D59";
-  if (ratio <= 0.9) return "#E34A33";
+  const adjusted = Math.pow(ratio, 1.25);
+  if (adjusted <= 0.2) return "#FEF3E2";
+  if (adjusted <= 0.4) return "#FDDFB8";
+  if (adjusted <= 0.6) return "#FCCC8A";
+  if (adjusted <= 0.8) return "#FC8D59";
+  if (adjusted <= 0.9) return "#E34A33";
   return "#B30000";
 };
 
@@ -54,6 +57,8 @@ const LeafletMap = ({
   year,
   metricLabel = "Rate per 100,000",
   dataByCountry,
+  scaleMin,
+  scaleMax,
   isLoading = false,
   isActive = false,
 }: LeafletMapProps) => {
@@ -73,8 +78,18 @@ const LeafletMap = ({
     () => Object.values(normalizedData).filter((v) => Number.isFinite(v)),
     [normalizedData]
   );
-  const minValue = values.length ? Math.min(...values) : 0;
-  const maxValue = values.length ? Math.max(...values) : 1;
+  const hasScaleOverride =
+    Number.isFinite(scaleMin) && Number.isFinite(scaleMax) && (scaleMax as number) > 0;
+  const minValue = hasScaleOverride
+    ? (scaleMin as number)
+    : values.length
+      ? Math.min(...values)
+      : 0;
+  const maxValue = hasScaleOverride
+    ? (scaleMax as number)
+    : values.length
+      ? Math.max(...values)
+      : 1;
 
   useEffect(() => {
     if (!mapRef.current) return;

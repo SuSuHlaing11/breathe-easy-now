@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -20,93 +21,227 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Search, Trash2, Edit2, FileText, AlertCircle } from "lucide-react";
+import { Search, FileText, Trash2, Edit2, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { UploadRecord, Organization } from "@/types/organization";
-import { mockUploadRecords } from "@/data/mockData";
+import { Organization } from "@/types/organization";
+import {
+  listUploads,
+  listUploadRecords,
+  updateUploadRecord,
+  deleteUpload,
+  getIMHEMeasures,
+  getIMHEMetrics,
+  getIMHEAges,
+  getIMHESexes,
+  getIMHECauses,
+} from "@/lib/API";
+
+interface BackendUpload {
+  upload_id: number;
+  org_id: number;
+  data_domain: "HEALTH" | "POLLUTION";
+  mongo_collection: string;
+  mongo_ref_id: string;
+  country: string;
+  status: "RECEIVED" | "PROCESSED" | "FAILED";
+  error_message?: string | null;
+  created_at: string;
+}
 
 const UploadHistory = () => {
   const { user } = useAuth();
   const org = user as Organization;
-  const { toast } = useToast();
   
-  const [records, setRecords] = useState<UploadRecord[]>([]);
+  const [records, setRecords] = useState<BackendUpload[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; record: UploadRecord | null }>({
-    open: false,
-    record: null,
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedUpload, setSelectedUpload] = useState<BackendUpload | null>(null);
+  const [uploadRecords, setUploadRecords] = useState<Array<Record<string, any>>>([]);
+  const [recordsTotal, setRecordsTotal] = useState(0);
+  const [recordsPage, setRecordsPage] = useState(1);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordError, setRecordError] = useState<string | null>(null);
+  const [editRecord, setEditRecord] = useState<Record<string, any> | null>(null);
+  const [editValues, setEditValues] = useState({
+    measure_name: "",
+    sex_name: "",
+    age_name: "",
+    cause_name: "",
+    metric_name: "",
+    year: "",
+    val: "",
+    upper: "",
+    lower: "",
   });
-  const [editDialog, setEditDialog] = useState<{ open: boolean; record: UploadRecord | null }>({
-    open: false,
-    record: null,
-  });
-  const [editFileName, setEditFileName] = useState("");
+
+  const [measureOptions, setMeasureOptions] = useState<string[]>([]);
+  const [metricOptions, setMetricOptions] = useState<string[]>([]);
+  const [ageOptions, setAgeOptions] = useState<string[]>([]);
+  const [sexOptions, setSexOptions] = useState<string[]>([]);
+  const [causeOptions, setCauseOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    // Load records from localStorage and merge with mock data
-    const storedRecords = JSON.parse(localStorage.getItem("upload_records") || "[]");
-    const orgRecords = [...mockUploadRecords, ...storedRecords].filter(
-      (r: UploadRecord) => r.org_id === org?.org_id
-    );
-    setRecords(orgRecords);
-  }, [org?.id]);
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listUploads();
+        const orgRecords = Array.isArray(data)
+          ? data.filter((r: BackendUpload) => r.org_id === org?.org_id)
+          : [];
+        setRecords(orgRecords);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load uploads.";
+        setError(message);
+        setRecords([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [org?.org_id]);
 
-  const filteredRecords = records.filter((record) =>
-    record.file_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    if (!detailsOpen || !selectedUpload) return;
+    const loadRecords = async () => {
+      setRecordsLoading(true);
+      setRecordError(null);
+      try {
+        const limit = 20;
+        const offset = (recordsPage - 1) * limit;
+        const data = await listUploadRecords(selectedUpload.upload_id, { limit, offset });
+        setUploadRecords(Array.isArray(data?.items) ? data.items : []);
+        setRecordsTotal(typeof data?.total === "number" ? data.total : 0);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load records.";
+        setRecordError(message);
+        setUploadRecords([]);
+        setRecordsTotal(0);
+      } finally {
+        setRecordsLoading(false);
+      }
+    };
+    loadRecords();
+  }, [detailsOpen, selectedUpload, recordsPage]);
 
-  const handleDelete = () => {
-    if (!deleteDialog.record) return;
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const params = org?.country ? { location_name: org.country } : undefined;
+        const [measures, metrics, ages, sexes, causes] = await Promise.all([
+          getIMHEMeasures(params),
+          getIMHEMetrics(params),
+          getIMHEAges(params),
+          getIMHESexes(params),
+          getIMHECauses(params),
+        ]);
+        setMeasureOptions((measures || []).map((m: any) => m.measure_name));
+        setMetricOptions((metrics || []).map((m: any) => m.metric_name));
+        setAgeOptions((ages || []).map((a: any) => a.age_name));
+        setSexOptions((sexes || []).map((s: any) => s.sex_name));
+        const cleaned = (causes || [])
+          .map((c: any) => c.cause_name)
+          .filter((name: string) => name && name.toLowerCase() !== "asthma");
+        setCauseOptions(cleaned);
+      } catch {
+        setMeasureOptions([]);
+        setMetricOptions([]);
+        setAgeOptions([]);
+        setSexOptions([]);
+        setCauseOptions([]);
+      }
+    };
+    loadOptions();
+  }, [org?.country]);
 
-    const updatedRecords = records.filter((r) => r.id !== deleteDialog.record!.id);
-    setRecords(updatedRecords);
-
-    // Update localStorage
-    const storedRecords = JSON.parse(localStorage.getItem("upload_records") || "[]");
-    const filteredStored = storedRecords.filter((r: UploadRecord) => r.id !== deleteDialog.record!.id);
-    localStorage.setItem("upload_records", JSON.stringify(filteredStored));
-
-    setDeleteDialog({ open: false, record: null });
-    toast({
-      title: "Record deleted",
-      description: "The upload record has been removed.",
-    });
-  };
-
-  const handleEdit = () => {
-    if (!editDialog.record || !editFileName.trim()) return;
-
-    const updatedRecords = records.map((r) =>
-      r.id === editDialog.record!.id ? { ...r, file_name: editFileName } : r
-    );
-    setRecords(updatedRecords);
-
-    // Update localStorage
-    const storedRecords = JSON.parse(localStorage.getItem("upload_records") || "[]");
-    const updatedStored = storedRecords.map((r: UploadRecord) =>
-      r.id === editDialog.record!.id ? { ...r, file_name: editFileName } : r
-    );
-    localStorage.setItem("upload_records", JSON.stringify(updatedStored));
-
-    setEditDialog({ open: false, record: null });
-    setEditFileName("");
-    toast({
-      title: "Record updated",
-      description: "The file name has been updated.",
-    });
-  };
+  const filteredRecords = records.filter((record) => {
+    const label = `${record.mongo_collection} ${record.mongo_ref_id}`.toLowerCase();
+    return label.includes(searchQuery.toLowerCase());
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "completed":
+      case "PROCESSED":
         return <Badge variant="default" className="bg-green-600">Completed</Badge>;
-      case "processing":
+      case "RECEIVED":
         return <Badge variant="secondary">Processing</Badge>;
-      case "failed":
+      case "FAILED":
         return <Badge variant="destructive">Failed</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const openDetails = (upload: BackendUpload) => {
+    setSelectedUpload(upload);
+    setRecordsPage(1);
+    setDetailsOpen(true);
+  };
+
+  const handleDelete = async (upload: BackendUpload) => {
+    if (!window.confirm("Delete this upload and its records? This cannot be undone.")) return;
+    try {
+      await deleteUpload(upload.upload_id);
+      setRecords((prev) => prev.filter((r) => r.upload_id !== upload.upload_id));
+      if (selectedUpload?.upload_id === upload.upload_id) {
+        setDetailsOpen(false);
+        setSelectedUpload(null);
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Delete failed.";
+      setError(message);
+    }
+  };
+
+  const openEditRecord = (record: Record<string, any>) => {
+    setEditRecord(record);
+    setEditValues({
+      measure_name: record.measure_name || "",
+      sex_name: record.sex_name || "",
+      age_name: record.age_name || "",
+      cause_name: record.cause_name || "",
+      metric_name: record.metric_name || "",
+      year: record.year?.toString() || "",
+      val: record.val?.toString() || "",
+      upper: record.upper?.toString() || "",
+      lower: record.lower?.toString() || "",
+    });
+  };
+
+  const saveEditRecord = async () => {
+    if (!selectedUpload || !editRecord) return;
+    const year = Number(editValues.year);
+    const val = Number(editValues.val);
+    if (!editValues.measure_name || !editValues.sex_name || !editValues.age_name ||
+        !editValues.cause_name || !editValues.metric_name || !Number.isFinite(year) || !Number.isFinite(val)) {
+      setRecordError("Please fill all required fields.");
+      return;
+    }
+    const payload = {
+      measure_name: editValues.measure_name,
+      sex_name: editValues.sex_name,
+      age_name: editValues.age_name,
+      cause_name: editValues.cause_name,
+      metric_name: editValues.metric_name,
+      year,
+      val,
+      upper: editValues.upper ? Number(editValues.upper) : undefined,
+      lower: editValues.lower ? Number(editValues.lower) : undefined,
+    };
+    try {
+      await updateUploadRecord(selectedUpload.upload_id, editRecord.id, payload);
+      setEditRecord(null);
+      setRecordsPage(1);
+      setDetailsOpen(true);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Update failed.";
+      setRecordError(message);
     }
   };
 
@@ -138,7 +273,11 @@ const UploadHistory = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredRecords.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading uploads...</div>
+            ) : error ? (
+              <div className="text-center py-12 text-destructive">{error}</div>
+            ) : filteredRecords.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-1">No uploads yet</h3>
@@ -151,9 +290,9 @@ const UploadHistory = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>File Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Size</TableHead>
+                      <TableHead>Batch</TableHead>
+                      <TableHead>Domain</TableHead>
+                      <TableHead>Country</TableHead>
                       <TableHead>Uploaded</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -163,7 +302,7 @@ const UploadHistory = () => {
                     <AnimatePresence>
                       {filteredRecords.map((record, index) => (
                         <motion.tr
-                          key={record.id}
+                          key={record.upload_id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, x: -20 }}
@@ -173,13 +312,20 @@ const UploadHistory = () => {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-muted-foreground" />
-                              {record.file_name}
+                              <span title={record.mongo_ref_id}>
+                                {record.mongo_collection}:{record.mongo_ref_id.slice(0, 10)}...
+                              </span>
                             </div>
+                            {record.error_message && record.status === "FAILED" && (
+                              <p className="text-xs text-destructive mt-1">
+                                {record.error_message}
+                              </p>
+                            )}
                           </TableCell>
-                          <TableCell className="capitalize">{record.file_type}</TableCell>
-                          <TableCell>{record.file_size}</TableCell>
+                          <TableCell className="capitalize">{record.data_domain.toLowerCase()}</TableCell>
+                          <TableCell>{record.country}</TableCell>
                           <TableCell>
-                            {new Date(record.uploaded_at).toLocaleDateString()}
+                            {new Date(record.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>{getStatusBadge(record.status)}</TableCell>
                           <TableCell className="text-right">
@@ -187,18 +333,15 @@ const UploadHistory = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
-                                  setEditFileName(record.file_name);
-                                  setEditDialog({ open: true, record });
-                                }}
+                                onClick={() => openDetails(record)}
                               >
-                                <Edit2 className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="text-destructive hover:text-destructive"
-                                onClick={() => setDeleteDialog({ open: true, record })}
+                                onClick={() => handleDelete(record)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -215,52 +358,202 @@ const UploadHistory = () => {
         </Card>
       </motion.div>
 
-      {/* Delete Dialog */}
-      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, record: null })}>
-        <DialogContent>
+      {/* No edit/delete until backend supports it */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              Delete Upload Record
-            </DialogTitle>
+            <DialogTitle>Upload Details</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{deleteDialog.record?.file_name}"? This action cannot be undone.
+              {selectedUpload
+                ? `${selectedUpload.mongo_collection} • ${selectedUpload.mongo_ref_id}`
+                : "Upload details"}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, record: null })}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
+          {recordsLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading records...</div>
+          ) : recordError ? (
+            <div className="py-4 text-destructive">{recordError}</div>
+          ) : uploadRecords.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">No records found.</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="overflow-x-auto border rounded-md">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Measure</th>
+                      <th className="text-left p-2">Cause</th>
+                      <th className="text-left p-2">Age</th>
+                      <th className="text-left p-2">Sex</th>
+                      <th className="text-left p-2">Metric</th>
+                      <th className="text-right p-2">Year</th>
+                      <th className="text-right p-2">Val</th>
+                      <th className="text-right p-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {uploadRecords.map((rec) => (
+                      <tr key={rec.id} className="border-b">
+                        <td className="p-2">{rec.measure_name}</td>
+                        <td className="p-2">{rec.cause_name}</td>
+                        <td className="p-2">{rec.age_name}</td>
+                        <td className="p-2">{rec.sex_name}</td>
+                        <td className="p-2">{rec.metric_name}</td>
+                        <td className="p-2 text-right">{rec.year}</td>
+                        <td className="p-2 text-right">{rec.val}</td>
+                        <td className="p-2 text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditRecord(rec)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={recordsPage === 1}
+                  onClick={() => setRecordsPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {recordsPage} of {Math.max(1, Math.ceil(recordsTotal / 20))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={recordsPage >= Math.ceil(recordsTotal / 20)}
+                  onClick={() => setRecordsPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, record: null })}>
-        <DialogContent>
+      <Dialog open={!!editRecord} onOpenChange={() => setEditRecord(null)}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit File Name</DialogTitle>
-            <DialogDescription>
-              Update the name for this upload record.
-            </DialogDescription>
+            <DialogTitle>Edit Record</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={editFileName}
-              onChange={(e) => setEditFileName(e.target.value)}
-              placeholder="File name"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Measure</Label>
+              <select
+                value={editValues.measure_name}
+                onChange={(e) => setEditValues((p) => ({ ...p, measure_name: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              >
+                <option value="">Select</option>
+                {measureOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cause</Label>
+              <select
+                value={editValues.cause_name}
+                onChange={(e) => setEditValues((p) => ({ ...p, cause_name: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              >
+                <option value="">Select</option>
+                {causeOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Age</Label>
+              <select
+                value={editValues.age_name}
+                onChange={(e) => setEditValues((p) => ({ ...p, age_name: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              >
+                <option value="">Select</option>
+                {ageOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Sex</Label>
+              <select
+                value={editValues.sex_name}
+                onChange={(e) => setEditValues((p) => ({ ...p, sex_name: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              >
+                <option value="">Select</option>
+                {sexOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Metric</Label>
+              <select
+                value={editValues.metric_name}
+                onChange={(e) => setEditValues((p) => ({ ...p, metric_name: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              >
+                <option value="">Select</option>
+                {metricOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Year</Label>
+              <input
+                type="number"
+                value={editValues.year}
+                onChange={(e) => setEditValues((p) => ({ ...p, year: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Value</Label>
+              <input
+                type="number"
+                value={editValues.val}
+                onChange={(e) => setEditValues((p) => ({ ...p, val: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Upper</Label>
+              <input
+                type="number"
+                value={editValues.upper}
+                onChange={(e) => setEditValues((p) => ({ ...p, upper: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Lower</Label>
+              <input
+                type="number"
+                value={editValues.lower}
+                onChange={(e) => setEditValues((p) => ({ ...p, lower: e.target.value }))}
+                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialog({ open: false, record: null })}>
+            <Button variant="outline" onClick={() => setEditRecord(null)}>
               Cancel
             </Button>
-            <Button onClick={handleEdit}>
-              Save Changes
-            </Button>
+            <Button onClick={saveEditRecord}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -269,3 +562,6 @@ const UploadHistory = () => {
 };
 
 export default UploadHistory;
+
+
+
