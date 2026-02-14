@@ -1,184 +1,220 @@
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+﻿import { useEffect, useMemo, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 interface LeafletMapProps {
   selectedCountries: string[];
   year: number;
-  showTooltip?: boolean;
-  metric?: string;
   metricLabel?: string;
+  dataByCountry: Record<string, number>;
+  isLoading?: boolean;
+  isActive?: boolean;
 }
 
-// Country coordinates for centering
-const countryCoords: Record<string, [number, number]> = {
-  "Myanmar": [21.9162, 95.9560],
-  "China": [35.8617, 104.1954],
-  "India": [20.5937, 78.9629],
-  "United States": [37.0902, -95.7129],
-  "Brazil": [-14.2350, -51.9253],
-  "Russia": [61.5240, 105.3188],
-  "Australia": [-25.2744, 133.7751],
-  "Indonesia": [-0.7893, 113.9213],
-  "Japan": [36.2048, 138.2529],
-  "Germany": [51.1657, 10.4515],
-  "France": [46.2276, 2.2137],
-  "United Kingdom": [55.3781, -3.4360],
-  "Nigeria": [9.0820, 8.6753],
-  "Kenya": [-0.0236, 37.9062],
-  "South Africa": [-30.5595, 22.9375],
-  "Thailand": [15.8700, 100.9925],
-  "Vietnam": [14.0583, 108.2772],
-  "Canada": [56.1304, -106.3468],
-  "Mexico": [23.6345, -102.5528],
-  "Argentina": [-38.4161, -63.6167],
+const GEOJSON_URL =
+  import.meta.env.VITE_GEOJSON_URL ||
+  "https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json";
+
+const COUNTRY_ALIASES: Record<string, string> = {
+  "united states of america": "united states",
+  "russian federation": "russia",
+  "iran (islamic republic of)": "iran",
+  "bolivia (plurinational state of)": "bolivia",
+  "venezuela (bolivarian republic of)": "venezuela",
+  "tanzania, united republic of": "tanzania",
+  "viet nam": "vietnam",
+  "lao people's democratic republic": "laos",
+  "cote d'ivoire": "ivory coast",
+  "republic of korea": "south korea",
+  "democratic people's republic of korea": "north korea",
 };
 
-// Pollution level colors based on the Chinese color palette
-const getPollutionColor = (value: number): string => {
-  if (value < 20) return 'hsl(145, 63%, 49%)';      // data-green - 良好
-  if (value < 40) return 'hsl(37, 90%, 51%)';       // data-yellow - 中度
-  if (value < 60) return 'hsl(28, 80%, 52%)';       // data-orange - 重度
-  if (value < 80) return 'hsl(6, 78%, 57%)';        // data-red - 严重
-  return 'hsl(6, 78%, 35%)';                         // data-critical
+const normalizeCountryName = (value: string) => {
+  const base = value.trim().toLowerCase();
+  return COUNTRY_ALIASES[base] || base;
 };
 
-const LeafletMap = ({ 
-  selectedCountries, 
-  year, 
-  showTooltip = true,
-  metric = 'rate',
-  metricLabel = 'Rate per 100,000'
+const getColor = (value: number, min: number, max: number): string => {
+  if (!Number.isFinite(value) || max <= min) return "hsl(0, 0%, 90%)";
+  const safeValue = Math.max(value, 0);
+  const logMin = Math.log10(Math.max(min, 1));
+  const logMax = Math.log10(Math.max(max, 1));
+  const logVal = Math.log10(Math.max(safeValue, 1));
+  const ratio = logMax > logMin ? (logVal - logMin) / (logMax - logMin) : 0;
+  if (ratio <= 0.2) return "#FEF3E2";
+  if (ratio <= 0.4) return "#FDDFB8";
+  if (ratio <= 0.6) return "#FCCC8A";
+  if (ratio <= 0.8) return "#FC8D59";
+  if (ratio <= 0.9) return "#E34A33";
+  return "#B30000";
+};
+
+const LeafletMap = ({
+  selectedCountries,
+  year,
+  metricLabel = "Rate per 100,000",
+  dataByCountry,
+  isLoading = false,
+  isActive = false,
 }: LeafletMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.LayerGroup | null>(null);
+  const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
+
+  const normalizedData = useMemo(() => {
+    const map: Record<string, number> = {};
+    Object.entries(dataByCountry || {}).forEach(([k, v]) => {
+      map[normalizeCountryName(k)] = v;
+    });
+    return map;
+  }, [dataByCountry]);
+
+  const values = useMemo(
+    () => Object.values(normalizedData).filter((v) => Number.isFinite(v)),
+    [normalizedData]
+  );
+  const minValue = values.length ? Math.min(...values) : 0;
+  const maxValue = values.length ? Math.max(...values) : 1;
 
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Initialize map only once
     if (!mapInstanceRef.current) {
+      const bounds = L.latLngBounds(
+        L.latLng(-85, -180),
+        L.latLng(85, 180)
+      );
       mapInstanceRef.current = L.map(mapRef.current, {
         center: [20, 0],
         zoom: 2,
         minZoom: 2,
-        maxZoom: 8,
+        maxZoom: 6,
         zoomControl: true,
         attributionControl: true,
+        maxBounds: bounds,
+        maxBoundsViscosity: 0.9,
+        worldCopyJump: false,
       });
 
-      // Add CartoDB Positron tiles for a clean, data-friendly look
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution:
+          "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> &copy; <a href=\"https://carto.com/attributions\">CARTO</a>",
+        subdomains: "abcd",
         maxZoom: 19,
       }).addTo(mapInstanceRef.current);
-
-      markersRef.current = L.layerGroup().addTo(mapInstanceRef.current);
     }
+  }, []);
 
-    // Clear existing markers
-    if (markersRef.current) {
-      markersRef.current.clearLayers();
-    }
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || geoJsonLayerRef.current) return;
 
-    // Add markers for selected countries
-    selectedCountries.forEach((country) => {
-      const coords = countryCoords[country];
-      if (coords && markersRef.current && mapInstanceRef.current) {
-        // Generate random pollution value for demo
-        const pollutionValue = Math.random() * 100;
-        const healthValue = (Math.random() * 20).toFixed(1);
-        const color = getPollutionColor(pollutionValue);
+    let cancelled = false;
+    const controller = new AbortController();
 
-        // Create circle marker
-        const circle = L.circleMarker(coords, {
-          radius: 20,
-          fillColor: color,
-          color: 'hsl(197, 10%, 29%)',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.7,
+    fetch(GEOJSON_URL, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((geojson) => {
+        if (cancelled) return;
+        if (!mapInstanceRef.current || !mapInstanceRef.current.getContainer()) return;
+        const layer = L.geoJSON(geojson, {
+          style: () => ({
+            color: "hsl(215, 10%, 75%)",
+            weight: 1,
+            fillColor: "hsl(0, 0%, 90%)",
+            fillOpacity: 0.7,
+          }),
         });
-
-        // Add popup with data
-        if (showTooltip) {
-          circle.bindPopup(`
-            <div style="font-family: system-ui; padding: 4px;">
-              <div style="font-weight: 600; font-size: 14px; color: #2C2C2C;">${country}</div>
-              <div style="font-size: 12px; color: #6A8D8D;">${year}</div>
-              <div style="margin-top: 8px; font-size: 13px;">
-                <span style="color: #6A8D8D;">${metricLabel}:</span>
-                <span style="font-weight: 600; color: ${color}; margin-left: 4px;">${healthValue}%</span>
-              </div>
-              <div style="font-size: 12px; margin-top: 4px;">
-                <span style="color: #6A8D8D;">PM2.5:</span>
-                <span style="font-weight: 500; margin-left: 4px;">${pollutionValue.toFixed(1)} μg/m³</span>
-              </div>
-            </div>
-          `, {
-            className: 'custom-popup',
-          });
-        }
-
-        circle.addTo(markersRef.current!);
-
-        // Add country label
-        const label = L.divIcon({
-          className: 'country-label',
-          html: `<div style="
-            background: hsl(213, 45%, 33%);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            white-space: nowrap;
-            transform: translateX(-50%);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          ">${country}</div>`,
-          iconSize: [0, 0],
-          iconAnchor: [0, -25],
-        });
-
-        L.marker(coords, { icon: label }).addTo(markersRef.current!);
-      }
-    });
-
-    // Fit bounds to selected countries
-    if (selectedCountries.length > 0) {
-      const validCoords = selectedCountries
-        .map((c) => countryCoords[c])
-        .filter((c): c is [number, number] => !!c);
-
-      if (validCoords.length > 0) {
-        const bounds = L.latLngBounds(validCoords);
-        mapInstanceRef.current?.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
-      }
-    }
+        layer.addTo(map);
+        geoJsonLayerRef.current = layer;
+      })
+      .catch(() => {
+        /* ignore aborted fetches */
+      });
 
     return () => {
-      // Don't destroy map on cleanup, just clear markers
+      cancelled = true;
+      controller.abort();
     };
-  }, [selectedCountries, year, showTooltip, metric, metricLabel]);
+  }, []);
 
-  // Cleanup on unmount
+  useEffect(() => {
+    const layer = geoJsonLayerRef.current;
+    if (!layer) return;
+
+    const selected = new Set(
+      (selectedCountries || []).map((c) => normalizeCountryName(c))
+    );
+    const hasSelection = selected.size > 0;
+
+    layer.eachLayer((l: any) => {
+      const feature = l?.feature;
+      const rawName =
+        feature?.properties?.name ||
+        feature?.properties?.NAME ||
+        feature?.properties?.ADMIN ||
+        feature?.properties?.admin ||
+        "";
+      const name = normalizeCountryName(String(rawName || ""));
+      const value = normalizedData[name];
+      const hasValue = typeof value === "number" && Number.isFinite(value);
+      const color = hasValue ? getColor(value, minValue, maxValue) : "hsl(0, 0%, 90%)";
+      const isSelected = hasSelection ? selected.has(name) : false;
+
+      l.setStyle({
+        fillColor: color,
+        fillOpacity: hasSelection ? (isSelected ? 0.85 : 0.25) : 0.75,
+        weight: hasSelection && isSelected ? 2 : 1,
+        color: "hsl(215, 10%, 70%)",
+      });
+
+      const displayValue = hasValue ? value.toLocaleString() : "No data";
+      l.bindTooltip(
+        `<div style=\"font-family: system-ui; font-size: 12px;\">
+          <div style=\"font-weight: 600; margin-bottom: 4px;\">${rawName}</div>
+          <div style=\"color: #6A8D8D;\">${year}</div>
+          <div style=\"margin-top: 6px;\">
+            <span style=\"color:#6A8D8D;\">${metricLabel}:</span>
+            <span style=\"font-weight: 600; margin-left: 4px;\">${displayValue}</span>
+          </div>
+        </div>`,
+        { sticky: true }
+      );
+    });
+  }, [normalizedData, selectedCountries, year, metricLabel, minValue, maxValue]);
+
   useEffect(() => {
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      geoJsonLayerRef.current = null;
     };
   }, []);
 
+  useEffect(() => {
+    if (!isActive || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [isActive]);
+
   return (
-    <div 
-      ref={mapRef} 
-      className="w-full h-full rounded-lg overflow-hidden"
-      style={{ minHeight: '300px', background: 'hsl(220, 20%, 95%)' }}
-    />
+    <div className="relative z-0 w-full h-full rounded-lg overflow-hidden">
+      <div
+        ref={mapRef}
+        className="w-full h-full"
+        style={{ minHeight: "300px", background: "hsl(220, 20%, 95%)" }}
+      />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm text-muted-foreground">
+          Loading map data...
+        </div>
+      )}
+    </div>
   );
 };
 

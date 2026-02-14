@@ -29,8 +29,8 @@ const AdminDataUploads = () => {
     upload.file_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getOrgName = (orgId: string) => {
-    const org = mockOrganizations.find((o) => o.id === orgId);
+  const getOrgName = (orgId: number) => {
+    const org = mockOrganizations.find((o) => o.org_id === orgId);
     return org?.org_name || "Unknown Organization";
   };
 

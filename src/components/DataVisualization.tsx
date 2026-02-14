@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,12 +19,17 @@ import {
 } from "recharts";
 import LeafletMap from "./LeafletMap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { getIMHECountrySummary } from "@/lib/API";
+import { measureNameMap } from "@/lib/imheFilters";
 
 interface DataVisualizationProps {
   selectedCountries: string[];
   pollutionType: string;
   healthArea: string;
   metric: string;
+  ageName: string;
+  sexName: string;
+  causeName: string;
 }
 
 const DataVisualization = ({
@@ -32,12 +37,18 @@ const DataVisualization = ({
   pollutionType,
   healthArea,
   metric,
+  ageName,
+  sexName,
+  causeName,
 }: DataVisualizationProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [yearRange, setYearRange] = useState<number[]>([2000]);
+  const [yearRange, setYearRange] = useState<number[]>([2020]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState("map");
+  const [mapData, setMapData] = useState<Record<string, number>>({});
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const isComparing = yearRange.length === 2;
   const prefersReducedMotion = useReducedMotion();
 
@@ -65,8 +76,8 @@ const DataVisualization = ({
 
   const metricLabels: Record<string, string> = {
     rate: "Rate per 100,000",
-    deaths: "Number of Deaths",
-    dalys: "DALYs",
+    deaths: "Deaths",
+    dalys: "DALYs (Disability-Adjusted Life Years)",
     prevalence: "Prevalence (%)",
   };
 
@@ -74,8 +85,8 @@ const DataVisualization = ({
     pm25: "PM2.5",
     pm10: "PM10",
     ozone: "Ozone",
-    no2: "NO₂",
-    so2: "SO₂",
+    no2: "NOâ‚‚",
+    so2: "SOâ‚‚",
     co: "CO",
   };
 
@@ -87,6 +98,41 @@ const DataVisualization = ({
     mortality: "All-cause Mortality",
     stroke: "Stroke",
   };
+
+  useEffect(() => {
+    const load = async () => {
+      setMapLoading(true);
+      setMapError(null);
+      try {
+        const year = yearRange[0];
+        const params: any = { year };
+        if (measureNameMap[metric]) params.measure_name = measureNameMap[metric];
+        if (causeName && causeName !== "all") params.cause_name = causeName;
+        if (ageName && ageName !== "all") params.age_name = ageName;
+        if (sexName && sexName !== "all") params.sex_name = sexName;
+        const rows = await getIMHECountrySummary(params);
+        const map: Record<string, number> = {};
+        (rows || []).forEach((row: { country: string; value: number }) => {
+          map[row.country] = row.value;
+        });
+        setMapData(map);
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.detail || err?.message || "Failed to load map data.";
+        setMapError(message);
+        setMapData({});
+      } finally {
+        setMapLoading(false);
+      }
+    };
+    load();
+  }, [yearRange, metric, causeName, ageName, sexName]);
+
+  const valueStats = useMemo(() => {
+    const values = Object.values(mapData).filter((v) => Number.isFinite(v));
+    if (!values.length) return { min: 0, max: 0 };
+    return { min: Math.min(...values), max: Math.max(...values) };
+  }, [mapData]);
 
   // Animation variants
   const containerVariants = {
@@ -114,7 +160,7 @@ const DataVisualization = ({
   };
 
   // Helper to render a single map using Leaflet
-  const renderMap = (yearValue: number, showTooltip: boolean = true, index: number = 0) => (
+  const renderMap = (yearValue: number, index: number = 0) => (
     <motion.div 
       className="flex-1 flex flex-col min-h-[400px] bg-card rounded-xl shadow-sm overflow-hidden"
       initial={prefersReducedMotion ? {} : { opacity: 0, x: index === 0 ? -20 : 20 }}
@@ -136,9 +182,10 @@ const DataVisualization = ({
         <LeafletMap
           selectedCountries={selectedCountries}
           year={yearValue}
-          showTooltip={showTooltip}
-          metric={metric}
           metricLabel={metricLabels[metric]}
+          dataByCountry={mapData}
+          isLoading={mapLoading}
+          isActive={activeTab === "map"}
         />
       </div>
     </motion.div>
@@ -209,7 +256,7 @@ const DataVisualization = ({
           </div>
         </motion.div>
 
-        <TabsContent value="map" className="flex-1 p-6 m-0">
+        <TabsContent value="map" className="flex-1 p-6 m-0" forceMount>
           <motion.div
             key={`map-${yearRange.join('-')}`}
             initial={prefersReducedMotion ? {} : { opacity: 0 }}
@@ -228,19 +275,26 @@ const DataVisualization = ({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    {renderMap(yearRange[0], true, 0)}
-                    {isComparing && renderMap(yearRange[1], false, 1)}
+                    {renderMap(yearRange[0], 0)}
+                    {isComparing && renderMap(yearRange[1], 1)}
                   </motion.div>
                 </AnimatePresence>
 
               {/* Color Scale Legend */}
               <div className="mt-6 flex flex-col gap-1 bg-card rounded-lg p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-2">
-                  {/* No data indicator */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="text-xs text-muted-foreground">
+                    {mapError ? `Error: ${mapError}` : `Metric: ${metricLabels[metric]}`}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {mapLoading ? "Loading..." : `Range: ${valueStats.min.toLocaleString()} - ${valueStats.max.toLocaleString()}`}
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-2 mt-2">
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-muted-foreground">No data</span>
-                    <div 
-                      className="w-8 h-4 border border-border" 
+                    <div
+                      className="w-8 h-4 border border-border"
                       style={{
                         background: `repeating-linear-gradient(
                           45deg,
@@ -248,37 +302,77 @@ const DataVisualization = ({
                           hsl(var(--muted)) 2px,
                           hsl(var(--background)) 2px,
                           hsl(var(--background)) 4px
-                        )`
+                        )`,
                       }}
                     />
                   </div>
-                  
-                  {/* Percentage scale legend */}
                   <div className="flex items-center gap-0">
-                    <span className="text-xs text-muted-foreground mr-2">0%</span>
+                    <span className="text-xs text-muted-foreground mr-2">Low</span>
                     <div className="flex">
-                      <div className="w-8 h-4" style={{ background: '#FEF3E2' }} />
-                      <div className="w-8 h-4" style={{ background: '#FDDFB8' }} />
-                      <div className="w-8 h-4" style={{ background: '#FCCC8A' }} />
-                      <div className="w-8 h-4" style={{ background: '#FC8D59' }} />
-                      <div className="w-8 h-4" style={{ background: '#E34A33' }} />
-                      <div className="w-8 h-4" style={{ background: '#B30000' }} />
+                      <div className="w-8 h-4" style={{ background: "#FEF3E2" }} />
+                      <div className="w-8 h-4" style={{ background: "#FDDFB8" }} />
+                      <div className="w-8 h-4" style={{ background: "#FCCC8A" }} />
+                      <div className="w-8 h-4" style={{ background: "#FC8D59" }} />
+                      <div className="w-8 h-4" style={{ background: "#E34A33" }} />
+                      <div className="w-8 h-4" style={{ background: "#B30000" }} />
                     </div>
-                  </div>
-                  
-                  {/* Percentage labels */}
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <span className="w-8 text-center">0.5%</span>
-                    <span className="w-8 text-center">1%</span>
-                    <span className="w-8 text-center">2%</span>
-                    <span className="w-8 text-center">5%</span>
-                    <span className="w-8 text-center">10%</span>
-                    <span className="w-8 text-center">20%</span>
+                    <span className="text-xs text-muted-foreground ml-2">High</span>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+                {/* Year Range Slider */}
+                <motion.div
+                  className="mt-6 border-t border-border pt-4"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="flex items-center gap-4">
+                    <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsPlaying(!isPlaying)}
+                      >
+                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      </Button>
+                    </motion.div>
+                    <span className="text-sm font-medium w-12">2020</span>
+                    <Slider
+                      value={yearRange}
+                      onValueChange={(values) => setYearRange(values.sort((a, b) => a - b))}
+                      onAddThumb={(newValue) => {
+                        if (yearRange.length < 2) {
+                          setYearRange([...yearRange, newValue].sort((a, b) => a - b));
+                        }
+                      }}
+                      onRemoveThumb={(index) => {
+                        if (yearRange.length > 1) {
+                          setYearRange(yearRange.filter((_, i) => i !== index));
+                        }
+                      }}
+                      min={2020}
+                      max={2023}
+                      step={1}
+                      minStepsBetweenThumbs={1}
+                      className="flex-1"
+                    />
+                    <span className="text-sm font-medium w-12">2023</span>
+                  </div>
+                  <motion.p
+                    className="text-xs text-muted-foreground mt-2 text-center"
+                    key={isComparing ? "comparing-text" : "single-text"}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {isComparing
+                      ? `Comparing ${yearRange[0]} and ${yearRange[1]} • Double-click a thumb to remove`
+                      : `Viewing ${yearRange[0]} • Click on the timeline to add a comparison year`}
+                  </motion.p>
+                </motion.div>
+              </CardContent>
+            </Card>
           </motion.div>
         </TabsContent>
 
@@ -303,7 +397,7 @@ const DataVisualization = ({
                     {(selectedCountries.length > 0 ? selectedCountries : ["Global Average"]).map((country) => (
                       <tr key={country} className="border-b border-border/50 hover:bg-muted/50">
                         <td className="py-3 px-4 font-medium">{country}</td>
-                        <td className="text-right py-3 px-4">{(Math.random() * 50 + 10).toFixed(1)} μg/m³</td>
+                        <td className="text-right py-3 px-4">{(Math.random() * 50 + 10).toFixed(1)} Î¼g/mÂ³</td>
                         <td className="text-right py-3 px-4">{(Math.random() * 100).toFixed(1)}</td>
                         <td className="text-right py-3 px-4">{yearRange[0]}{isComparing ? ` - ${yearRange[1]}` : ''}</td>
                       </tr>
@@ -390,7 +484,7 @@ const DataVisualization = ({
                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                         axisLine={{ stroke: 'hsl(var(--border))' }}
                         label={{ 
-                          value: `${pollutionLabels[pollutionType]} (μg/m³)`, 
+                          value: `${pollutionLabels[pollutionType]} (Î¼g/mÂ³)`, 
                           angle: 90, 
                           position: 'insideRight',
                           style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
@@ -503,79 +597,10 @@ const DataVisualization = ({
           </motion.div>
         </TabsContent>
 
-        {/* Year Range Slider with Export Buttons */}
-        <motion.div 
-          className="p-6 border-t border-border bg-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <div className="flex items-center gap-4">
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsPlaying(!isPlaying)}
-              >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </Button>
-            </motion.div>
-            <span className="text-sm font-medium w-12">1990</span>
-            <Slider
-              value={yearRange}
-              onValueChange={(values) => setYearRange(values.sort((a, b) => a - b))}
-              onAddThumb={(newValue) => {
-                if (yearRange.length < 2) {
-                  setYearRange([...yearRange, newValue].sort((a, b) => a - b));
-                }
-              }}
-              onRemoveThumb={(index) => {
-                if (yearRange.length > 1) {
-                  setYearRange(yearRange.filter((_, i) => i !== index));
-                }
-              }}
-              min={1990}
-              max={2023}
-              step={1}
-              minStepsBetweenThumbs={1}
-              className="flex-1"
-            />
-            <span className="text-sm font-medium w-12">2023</span>
-            
-            {/* Export Buttons */}
-            <div className="flex items-center gap-1 ml-4 border-l border-border pl-4">
-              {[
-                { icon: Download, title: "Download" },
-                { icon: Share2, title: "Share" },
-                { icon: Maximize2, title: "Fullscreen" }
-              ].map((btn, index) => (
-                <motion.div 
-                  key={btn.title}
-                  whileHover={{ scale: 1.1 }} 
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button variant="ghost" size="icon" title={btn.title}>
-                    <btn.icon className="h-4 w-4" />
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-          <motion.p 
-            className="text-xs text-muted-foreground mt-2 text-center"
-            key={isComparing ? 'comparing-text' : 'single-text'}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            {isComparing 
-              ? `Comparing ${yearRange[0]} and ${yearRange[1]} • Double-click a thumb to remove` 
-              : `Viewing ${yearRange[0]} • Click on the timeline to add a comparison year`}
-          </motion.p>
-        </motion.div>
       </Tabs>
     </motion.div>
   );
 };
 
 export default DataVisualization;
+

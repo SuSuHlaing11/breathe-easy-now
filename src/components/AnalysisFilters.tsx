@@ -10,9 +10,18 @@ interface AnalysisFiltersProps {
   pollutionType: string;
   healthArea: string;
   metric: string;
+  ageName: string;
+  ageOptions: Array<{ age_id: number; age_name: string }>;
+  sexName: string;
+  sexOptions: Array<{ sex_id: number; sex_name: string }>;
+  causeName: string;
+  causeOptions: Array<{ cause_id: number; cause_name: string }>;
   onPollutionTypeChange: (value: string) => void;
   onHealthAreaChange: (value: string) => void;
   onMetricChange: (value: string) => void;
+  onAgeChange: (value: string) => void;
+  onSexChange: (value: string) => void;
+  onCauseChange: (value: string) => void;
 }
 
 const pollutionTypes = [
@@ -22,15 +31,6 @@ const pollutionTypes = [
   { value: "no2", label: "Nitrogen Dioxide (NO₂)" },
   { value: "so2", label: "Sulfur Dioxide (SO₂)" },
   { value: "co", label: "Carbon Monoxide (CO)" },
-];
-
-const healthAreas = [
-  { value: "respiratory", label: "Respiratory Diseases" },
-  { value: "cardiovascular", label: "Cardiovascular Diseases" },
-  { value: "child_health", label: "Child Health" },
-  { value: "lung_cancer", label: "Lung Cancer" },
-  { value: "mortality", label: "All-cause Mortality" },
-  { value: "stroke", label: "Stroke" },
 ];
 
 const metrics = [
@@ -44,12 +44,21 @@ const AnalysisFilters = ({
   pollutionType,
   healthArea,
   metric,
+  ageName,
+  ageOptions,
+  sexName,
+  sexOptions,
+  causeName,
+  causeOptions,
   onPollutionTypeChange,
   onHealthAreaChange,
   onMetricChange,
+  onAgeChange,
+  onSexChange,
+  onCauseChange,
 }: AnalysisFiltersProps) => {
   return (
-    <div className="flex flex-wrap gap-4 p-4 bg-card border-b border-border">
+    <div className="relative z-50 flex flex-wrap gap-4 p-4 bg-card border-b border-border">
       <div className="flex-1 min-w-[180px]">
         <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
           Air Pollution
@@ -72,14 +81,15 @@ const AnalysisFilters = ({
         <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
           Health Area
         </label>
-        <Select value={healthArea} onValueChange={onHealthAreaChange}>
+        <Select value={causeName} onValueChange={onCauseChange}>
           <SelectTrigger>
             <SelectValue placeholder="Select health area" />
           </SelectTrigger>
           <SelectContent>
-            {healthAreas.map((area) => (
-              <SelectItem key={area.value} value={area.value}>
-                {area.label}
+            <SelectItem value="all">All causes</SelectItem>
+            {causeOptions.map((cause) => (
+              <SelectItem key={cause.cause_id} value={cause.cause_name}>
+                {cause.cause_name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -98,6 +108,44 @@ const AnalysisFilters = ({
             {metrics.map((m) => (
               <SelectItem key={m.value} value={m.value}>
                 {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex-1 min-w-[180px]">
+        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+          Age Group
+        </label>
+        <Select value={ageName} onValueChange={onAgeChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="All ages" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All ages</SelectItem>
+            {ageOptions.map((age) => (
+              <SelectItem key={age.age_id} value={age.age_name}>
+                {age.age_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex-1 min-w-[180px]">
+        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+          Sex
+        </label>
+        <Select value={sexName} onValueChange={onSexChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="All sexes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sexes</SelectItem>
+            {sexOptions.map((sex) => (
+              <SelectItem key={sex.sex_id} value={sex.sex_name}>
+                {sex.sex_name}
               </SelectItem>
             ))}
           </SelectContent>

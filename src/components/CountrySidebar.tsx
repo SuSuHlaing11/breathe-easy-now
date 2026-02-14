@@ -95,7 +95,7 @@ const CountrySidebar = ({ selectedCountries, onCountryChange }: CountrySidebarPr
   }
 
   return (
-    <div className="w-64 border-r border-border bg-sidebar flex flex-col animate-slide-in-left">
+    <div className="w-64 border-r border-border bg-sidebar flex flex-col h-[calc(100vh-4rem)] min-h-0 animate-slide-in-left">
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border flex items-center justify-between">
         <div>

@@ -198,3 +198,42 @@ export const listOrgApplicationFiles = async (applicationId: number) =>
 export const getMyOrg = async () => (await api.get("/orgs/me")).data;
 
 export { api, simApi };
+
+/* ===============================
+   HEALTH (IMHE)
+=============================== */
+export const getIMHECountrySummary = async (params: {
+  year: number;
+  measure_name?: string;
+  cause_name?: string;
+  cause_name_contains?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/country-summary", { params })).data;
+
+export const getIMHEAges = async (params?: {
+  year?: number;
+  measure_name?: string;
+  cause_name?: string;
+  cause_name_contains?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/ages", { params })).data;
+
+export const getIMHESexes = async (params?: {
+  year?: number;
+  measure_name?: string;
+  cause_name?: string;
+  cause_name_contains?: string;
+  age_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/sexes", { params })).data;
+
+export const getIMHECauses = async (params?: {
+  year?: number;
+  measure_name?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/causes", { params })).data;

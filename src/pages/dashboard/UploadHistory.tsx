@@ -47,7 +47,7 @@ const UploadHistory = () => {
     // Load records from localStorage and merge with mock data
     const storedRecords = JSON.parse(localStorage.getItem("upload_records") || "[]");
     const orgRecords = [...mockUploadRecords, ...storedRecords].filter(
-      (r: UploadRecord) => r.org_id === org?.id
+      (r: UploadRecord) => r.org_id === org?.org_id
     );
     setRecords(orgRecords);
   }, [org?.id]);

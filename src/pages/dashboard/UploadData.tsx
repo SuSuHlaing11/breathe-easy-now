@@ -8,6 +8,7 @@ import { Upload, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Organization } from "@/types/organization";
+import { isHealthDomain } from "@/lib/enumMaps";
 
 const UploadData = () => {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ const UploadData = () => {
   
   const [file, setFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<"health" | "pollution">(
-    org?.data_domain === "Health Data" ? "health" : "pollution"
+    isHealthDomain(org?.data_domain) ? "health" : "pollution"
   );
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -64,7 +65,7 @@ const UploadData = () => {
     // Store in localStorage for demo
     const uploadRecord = {
       id: `upload-${Date.now()}`,
-      org_id: org?.id,
+      org_id: org?.org_id ?? 0,
       file_name: file.name,
       file_type: fileType,
       file_size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,

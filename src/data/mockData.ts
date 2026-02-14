@@ -61,10 +61,10 @@ export const mockOrganizationRequests: OrganizationRequest[] = [
 
 export const mockOrganizations: Organization[] = [
   {
-    id: "org-001",
+    org_id: 1,
     org_name: "Singapore Environmental Agency",
-    org_type: "Government",
-    data_domain: "Pollution Data",
+    org_type: "GOVERNMENT",
+    data_domain: "POLLUTION",
     country: "Singapore",
     address_detail: "40 Scotts Road, Singapore 228231",
     official_email: "data@sea.gov.sg",
@@ -75,10 +75,10 @@ export const mockOrganizations: Organization[] = [
     created_at: "2024-12-01T00:00:00Z"
   },
   {
-    id: "org-002",
+    org_id: 2,
     org_name: "Tokyo Medical Research Center",
-    org_type: "Research",
-    data_domain: "Health Data",
+    org_type: "RESEARCH_INSTITUTION",
+    data_domain: "HEALTH",
     country: "Japan",
     address_detail: "2-1-1 Nihonbashi, Chuo-ku, Tokyo",
     official_email: "research@tmrc.jp",
@@ -93,7 +93,7 @@ export const mockOrganizations: Organization[] = [
 export const mockUploadRecords: UploadRecord[] = [
   {
     id: "upload-001",
-    org_id: "org-001",
+    org_id: 1,
     file_name: "singapore_pm25_jan2025.csv",
     file_type: "pollution",
     file_size: "2.4 MB",
@@ -102,7 +102,7 @@ export const mockUploadRecords: UploadRecord[] = [
   },
   {
     id: "upload-002",
-    org_id: "org-001",
+    org_id: 1,
     file_name: "singapore_aqi_feb2025.csv",
     file_type: "pollution",
     file_size: "1.8 MB",
@@ -111,7 +111,7 @@ export const mockUploadRecords: UploadRecord[] = [
   },
   {
     id: "upload-003",
-    org_id: "org-002",
+    org_id: 2,
     file_name: "tokyo_respiratory_q4_2024.xlsx",
     file_type: "health",
     file_size: "5.2 MB",

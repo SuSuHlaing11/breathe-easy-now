@@ -12,6 +12,7 @@ import { Building2, Mail, Globe, MapPin, User, CheckCircle2, Lock } from "lucide
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Organization } from "@/types/organization";
+import { ORG_TYPE_LABELS, DATA_DOMAIN_LABELS } from "@/lib/enumMaps";
 import { Link } from "react-router-dom";
 
 const profileSchema = z.object({
@@ -96,11 +97,11 @@ const ProfileManagement = () => {
               </div>
               <div className="space-y-1">
                 <Label className="text-muted-foreground text-xs">Organization Type</Label>
-                <p className="font-medium">{org.org_type}</p>
+                <p className="font-medium">{ORG_TYPE_LABELS[org.org_type] || org.org_type}</p>
               </div>
               <div className="space-y-1">
                 <Label className="text-muted-foreground text-xs">Data Domain</Label>
-                <p className="font-medium">{org.data_domain}</p>
+                <p className="font-medium">{DATA_DOMAIN_LABELS[org.data_domain] || org.data_domain}</p>
               </div>
               <div className="space-y-1">
                 <Label className="text-muted-foreground text-xs">Country</Label>

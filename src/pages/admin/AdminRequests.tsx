@@ -37,19 +37,7 @@ import {
   reviewOrgApplication,
   listOrgApplicationFiles,
 } from "@/lib/API";
-
-const ORG_TYPE_LABELS: Record<string, string> = {
-  WEATHER_STATION: "Weather Station",
-  HOSPITAL: "Hospital",
-  RESEARCH_INSTITUTION: "Research",
-  GOVERNMENT: "Government",
-  OTHER: "Other",
-};
-
-const DATA_DOMAIN_LABELS: Record<string, string> = {
-  HEALTH: "Health Data",
-  POLLUTION: "Pollution Data",
-};
+import { ORG_TYPE_LABELS, DATA_DOMAIN_LABELS } from "@/lib/enumMaps";
 
 const AdminRequests = () => {
   const { toast } = useToast();

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Search, Building2 } from "lucide-react";
 import { listOrgs } from "@/lib/API";
+import { ORG_TYPE_LABELS, DATA_DOMAIN_LABELS } from "@/lib/enumMaps";
 import { useToast } from "@/hooks/use-toast";
 
 interface OrgRow {
@@ -28,19 +29,6 @@ interface OrgRow {
   status: string;
   created_at: string;
 }
-
-const ORG_TYPE_LABELS: Record<string, string> = {
-  WEATHER_STATION: "Weather Station",
-  HOSPITAL: "Hospital",
-  RESEARCH_INSTITUTION: "Research",
-  GOVERNMENT: "Government",
-  OTHER: "Other",
-};
-
-const DATA_DOMAIN_LABELS: Record<string, string> = {
-  HEALTH: "Health Data",
-  POLLUTION: "Pollution Data",
-};
 
 const AdminOrganizations = () => {
   const { toast } = useToast();

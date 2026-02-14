@@ -1,5 +1,14 @@
 import { OrgType, DataDomain } from "@/data/countries";
 
+export type OrgTypeEnum =
+  | "WEATHER_STATION"
+  | "HOSPITAL"
+  | "RESEARCH_INSTITUTION"
+  | "GOVERNMENT"
+  | "OTHER";
+
+export type DataDomainEnum = "HEALTH" | "POLLUTION";
+
 export interface OrganizationRequest {
   id: string;
   org_name: string;
@@ -35,10 +44,10 @@ export interface OrgApplication {
 }
 
 export interface Organization {
-  id: string;
+  org_id: number;
   org_name: string;
-  org_type: OrgType;
-  data_domain: DataDomain;
+  org_type: OrgTypeEnum;
+  data_domain: DataDomainEnum;
   country: string;
   address_detail: string;
   official_email: string;
@@ -51,7 +60,7 @@ export interface Organization {
 
 export interface UploadRecord {
   id: string;
-  org_id: string;
+  org_id: number;
   file_name: string;
   file_type: "health" | "pollution";
   file_size: string;
