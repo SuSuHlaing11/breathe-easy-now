@@ -31,6 +31,9 @@ Mark items as `done` / `blocked` / `missing`.
 ## 6. Data Views
 - [ ] Analysis page wired to backend/analytics.
 - [ ] Analysis line chart: add health + pollution trend with user-selectable Line/Bar mapping (dropdown/modal).
+- [ ] Add OpenAQ pollution API integration (`/pollution/openaq`) for map pins.
+- [ ] Wire pollution metric dropdown to `metric` query param (`value|avg|min|max|median`).
+- [ ] Use OpenAQ `metric_value` for pin size/color; keep `units` in tooltip.
 - [ ] Prediction page wired to backend/AI.
 - [ ] Health map uses country name matching (upgrade to ISO later).
 - [ ] Age group filter sourced from IMHE.

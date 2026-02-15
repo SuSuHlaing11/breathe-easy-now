@@ -21,6 +21,7 @@ import { Upload, X, FileText, CheckCircle2, Building2 } from "lucide-react";
 import { countries, orgTypes, dataDomains } from "@/data/countries";
 import { useToast } from "@/hooks/use-toast";
 import { submitOrgApplication, uploadOrgApplicationFile } from "@/lib/API";
+import { mapDataDomainLabelToEnum, mapOrgTypeLabelToEnum } from "@/lib/enumMaps";
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -39,19 +40,6 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-
-const ORG_TYPE_MAP: Record<FormData["org_type"], string> = {
-  "Weather Station": "WEATHER_STATION",
-  "Hospital": "HOSPITAL",
-  "Research": "RESEARCH_INSTITUTION",
-  "Government": "GOVERNMENT",
-  "Other": "OTHER",
-};
-
-const DATA_DOMAIN_MAP: Record<FormData["data_domain"], string> = {
-  "Health Data": "HEALTH",
-  "Pollution Data": "POLLUTION",
-};
 
 const OrganizationRequestForm = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -117,10 +105,16 @@ const OrganizationRequestForm = () => {
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     try {
+      const orgType = mapOrgTypeLabelToEnum(data.org_type);
+      const dataDomain = mapDataDomainLabelToEnum(data.data_domain);
+      if (!orgType || !dataDomain) {
+        throw new Error("Invalid organization type or data domain selection.");
+      }
+
       const payload = {
         org_name: data.org_name,
-        org_type: ORG_TYPE_MAP[data.org_type],
-        data_domain: DATA_DOMAIN_MAP[data.data_domain],
+        org_type: orgType,
+        data_domain: dataDomain,
         country: data.country,
         address_detail: data.address_detail,
         official_email: data.official_email,

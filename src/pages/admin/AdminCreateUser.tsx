@@ -20,6 +20,7 @@ import { UserPlus, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { countries, orgTypes, dataDomains } from "@/data/countries";
 import { createAdminUser, createOrgUser } from "@/lib/API";
+import { mapDataDomainLabelToEnum, mapOrgTypeLabelToEnum } from "@/lib/enumMaps";
 
 const adminSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -89,13 +90,16 @@ const AdminCreateUser = () => {
   const handleOrgSubmit = async (data: OrgFormData) => {
     setIsSubmitting(true);
     try {
+      const orgType = mapOrgTypeLabelToEnum(data.org_type);
+      const dataDomain = mapDataDomainLabelToEnum(data.data_domain);
+      if (!orgType || !dataDomain) {
+        throw new Error("Invalid organization type or data domain selection.");
+      }
+
       const payload = {
         org_name: data.org_name,
-        org_type: data.org_type === "Weather Station" ? "WEATHER_STATION" :
-          data.org_type === "Hospital" ? "HOSPITAL" :
-          data.org_type === "Research" ? "RESEARCH_INSTITUTION" :
-          data.org_type === "Government" ? "GOVERNMENT" : "OTHER",
-        data_domain: data.data_domain === "Health Data" ? "HEALTH" : "POLLUTION",
+        org_type: orgType,
+        data_domain: dataDomain,
         country: data.country,
         official_email: data.official_email,
         address_detail: data.address_detail,
