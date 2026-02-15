@@ -329,6 +329,14 @@ export const getOpenAQList = async (params: {
   limit?: number;
 }) => (await api.get("/pollution/openaq", { params })).data as { total: number; items: OpenAQItem[] };
 
+export const getOpenAQTrend = async (params: {
+  year_from: number;
+  year_to: number;
+  pollutant?: string;
+  country_name?: string;
+  metric?: "value" | "avg" | "min" | "max" | "median";
+}) => (await api.get("/pollution/openaq/trend", { params })).data as Array<{ year: number; value: number | null }>;
+
 /* ===============================
    HEALTH UPLOADS (IMHE)
 =============================== */

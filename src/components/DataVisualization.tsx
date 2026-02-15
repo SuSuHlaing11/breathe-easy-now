@@ -3,9 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Map, Table2, TrendingUp, ZoomIn, Play, Pause, Sparkles, Download, Share2, Maximize2 } from "lucide-react";
+import { Map as MapIcon, Table2, TrendingUp, ZoomIn, Play, Pause, Sparkles, Download, Share2, Maximize2 } from "lucide-react";
 import {
   ComposedChart,
   Bar,
@@ -19,11 +18,19 @@ import {
 } from "recharts";
 import LeafletMap from "./LeafletMap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { getIMHECountrySummaryWithPollution, getIMHEPercentiles, getOpenAQList, OpenAQItem } from "@/lib/API";
+import {
+  getIMHECountrySummaryWithPollution,
+  getIMHEPercentiles,
+  getIMHETrend,
+  getOpenAQList,
+  getOpenAQTrend,
+  OpenAQItem,
+} from "@/lib/API";
 import { measureNameMap } from "@/lib/imheFilters";
 
 interface DataVisualizationProps {
   selectedCountries: string[];
+  defaultTableCountries?: string[];
   pollutionType: string;
   pollutionMetric: string;
   healthArea: string;
@@ -49,6 +56,7 @@ interface OpenAQPin {
 
 const DataVisualization = ({
   selectedCountries,
+  defaultTableCountries = [],
   pollutionType,
   pollutionMetric,
   healthArea,
@@ -75,6 +83,12 @@ const DataVisualization = ({
   const tablePageSize = 10;
   const [percentileRange, setPercentileRange] = useState<{ min: number; max: number } | null>(null);
   const [percentileLoading, setPercentileLoading] = useState(false);
+  const [trendData, setTrendData] = useState<Array<{ year: string; healthValue?: number | null; pollutionValue?: number | null }>>([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [tableYear, setTableYear] = useState<number>(yearRange[0]);
+  const [trendYearFrom, setTrendYearFrom] = useState<number>(2020);
+  const [trendYearTo, setTrendYearTo] = useState<number>(2023);
+  const [mapYear, setMapYear] = useState<number>(yearRange[0]);
   const isComparing = yearRange.length === 2;
   const prefersReducedMotion = useReducedMotion();
 
@@ -107,29 +121,8 @@ const DataVisualization = ({
 
   const healthLabel = causeName !== "all" ? causeName : "All causes";
 
-  const generateChartData = (selectedYear: number) => {
-    const baseData = [
-      { year: "2018", healthValue: 50, pollutionValue: 22 },
-      { year: "2019", healthValue: 100, pollutionValue: 58 },
-      { year: "2020", healthValue: 30, pollutionValue: 25 },
-      { year: "2021", healthValue: 105, pollutionValue: 140 },
-      { year: "2022", healthValue: 85, pollutionValue: 95 },
-      { year: "2023", healthValue: 150, pollutionValue: 148 },
-    ];
-    const yearOffset = (selectedYear - 2000) * 2;
-    return baseData.map((d, i) => {
-      const jitter = ((selectedYear + i * 7) % 10) - 5;
-      const pollutionJitter = ((selectedYear + i * 5) % 8) - 4;
-      return {
-        ...d,
-        healthValue: Math.max(10, d.healthValue + yearOffset + jitter),
-        pollutionValue: Math.max(10, d.pollutionValue + yearOffset * 0.5 + pollutionJitter),
-      };
-    });
-  };
-
-  const chartData1 = generateChartData(yearRange[0]);
-  const chartData2 = isComparing ? generateChartData(yearRange[1]) : [];
+  const chartData1 = trendData;
+  const chartData2 = trendData;
 
   useEffect(() => {
     const load = async () => {
@@ -267,12 +260,140 @@ const DataVisualization = ({
     loadPercentiles();
   }, [metric, causeName, ageName, sexName]);
 
+  useEffect(() => {
+    const loadTrend = async () => {
+      setTrendLoading(true);
+      try {
+        const params: any = {};
+        if (measureNameMap[metric]) params.measure_name = measureNameMap[metric];
+        if (causeName && causeName !== "all") params.cause_name = causeName;
+        if (ageName && ageName !== "all") params.age_name = ageName;
+        if (sexName && sexName !== "all") params.sex_name = sexName;
+        const countryFilter =
+          selectedCountries.length === 1 ? selectedCountries[0] : undefined;
+        const pollutant = pollutionParamMap[pollutionType] || pollutionType;
+
+        const healthParams = { ...params };
+        if (countryFilter) {
+          healthParams.location_name = countryFilter;
+        }
+
+        const rangeFrom = Math.min(trendYearFrom, trendYearTo);
+        const rangeTo = Math.max(trendYearFrom, trendYearTo);
+
+        console.groupCollapsed("[trend] request params");
+        console.log("healthParams:", healthParams);
+        console.log("pollutionParams:", {
+          year_from: rangeFrom,
+          year_to: rangeTo,
+          country_name: countryFilter,
+          pollutant,
+          metric: pollutionMetric,
+        });
+        console.groupEnd();
+
+        const [healthRes, pollutionRes] = await Promise.allSettled([
+          getIMHETrend({
+            ...healthParams,
+            year_from: rangeFrom,
+            year_to: rangeTo,
+          } as any),
+          getOpenAQTrend({
+            year_from: rangeFrom,
+            year_to: rangeTo,
+            country_name: countryFilter,
+            pollutant,
+            metric: pollutionMetric as any,
+          }),
+        ]);
+
+        const healthSeries =
+          healthRes.status === "fulfilled" ? healthRes.value : [];
+        const pollutionSeries =
+          pollutionRes.status === "fulfilled" ? pollutionRes.value : [];
+        const healthList = Array.isArray(healthSeries) ? healthSeries : [];
+        const pollutionList = Array.isArray(pollutionSeries) ? pollutionSeries : [];
+
+        console.groupCollapsed("[trend] response samples");
+        console.log("health status:", healthRes.status);
+        if (healthRes.status === "rejected") {
+          console.log("health error:", healthRes.reason);
+        } else {
+          console.log("health count:", healthList.length);
+          if (!Array.isArray(healthSeries)) console.log("health payload not array:", healthSeries);
+        }
+        console.log("pollution status:", pollutionRes.status);
+        if (pollutionRes.status === "rejected") {
+          console.log("pollution error:", pollutionRes.reason);
+        } else {
+          console.log("pollution count:", pollutionList.length);
+          if (!Array.isArray(pollutionSeries)) console.log("pollution payload not array:", pollutionSeries);
+        }
+        console.groupEnd();
+
+        try {
+          const healthMap = new Map<string, number | null>();
+          healthList.forEach((row: { year: number; value: number }) => {
+            healthMap.set(String(row.year), row.value);
+          });
+          const pollutionMap = new Map<string, number | null>();
+          pollutionList.forEach((row: { year: number; value: number | null }) => {
+            pollutionMap.set(String(row.year), row.value ?? null);
+          });
+
+          const years = Array.from(
+            new Set([
+              ...Array.from(healthMap.keys()),
+              ...Array.from(pollutionMap.keys()),
+            ])
+          )
+            .sort((a, b) => Number(a) - Number(b))
+            .filter((year) => Number(year) >= rangeFrom && Number(year) <= rangeTo);
+
+          const merged = years.map((year) => ({
+            year,
+            healthValue: healthMap.get(year) ?? null,
+            pollutionValue: pollutionMap.get(year) ?? null,
+          }));
+          console.groupCollapsed("[trend] merged");
+          console.log("years:", years);
+          console.log("merged length:", merged.length);
+          console.log("merged sample:", merged.slice(0, 3));
+          console.groupEnd();
+          setTrendData([...merged]);
+        } catch (mergeErr) {
+          console.error("[trend] merge error:", mergeErr);
+          setTrendData([]);
+        }
+      } catch {
+        setTrendData([]);
+      } finally {
+        setTrendLoading(false);
+      }
+    };
+    loadTrend();
+  }, [metric, causeName, ageName, sexName, pollutionType, pollutionMetric, selectedCountries, trendYearFrom, trendYearTo]);
+
   
   useEffect(() => {
     setTablePage(1);
   }, [selectedCountries, mapDataByYear]);
 
-  const tableCountries = selectedCountries;
+  useEffect(() => {
+    setTableYear(yearRange[0]);
+    setMapYear(yearRange[0]);
+  }, [yearRange]);
+
+  useEffect(() => {
+    const defaultFrom = 2020;
+    const defaultTo = 2023;
+    const clampedFrom = Math.min(Math.max(defaultFrom, minYear), maxYear);
+    const clampedTo = Math.min(Math.max(defaultTo, minYear), maxYear);
+    setTrendYearFrom(clampedFrom);
+    setTrendYearTo(clampedTo);
+  }, [minYear, maxYear]);
+
+  const tableCountries = selectedCountries.length ? selectedCountries : defaultTableCountries;
   const totalPages = Math.ceil(tableCountries.length / tablePageSize);
   const pagedCountries = tableCountries.slice(
     (tablePage - 1) * tablePageSize,
@@ -395,7 +516,7 @@ const DataVisualization = ({
           <TabsList>
             {[
               { value: 'table', icon: Table2, label: 'Table' },
-              { value: 'map', icon: Map, label: 'Map' },
+              { value: 'map', icon: MapIcon, label: 'Map' },
               { value: 'chart', icon: TrendingUp, label: 'Line' }
             ].map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value} className="gap-2">
@@ -428,13 +549,29 @@ const DataVisualization = ({
 
         <TabsContent value="map" className="flex-1 p-6 m-0" forceMount>
           <motion.div
-            key={`map-${yearRange.join('-')}`}
+            key={`map-${mapYear}`}
             initial={prefersReducedMotion ? {} : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
             <Card className="h-full border-border bg-muted/30">
               <CardContent className="p-6 h-full">
+                <div className="mb-4 flex items-center justify-end gap-2">
+                  <span className="text-xs text-muted-foreground">Year</span>
+                  <select
+                    value={mapYear}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      setMapYear(next);
+                      onYearRangeChange([next]);
+                    }}
+                    className="h-8 px-2 text-sm rounded-md border border-input bg-background"
+                  >
+                    {Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
                 {/* Map Container - side by side when comparing */}
                 <AnimatePresence mode="wait">
                   <motion.div 
@@ -494,72 +631,6 @@ const DataVisualization = ({
                   </div>
                 </div>
               </div>
-                {/* Year Range Slider */}
-                <motion.div
-                  className="mt-6 border-t border-border pt-4"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="flex items-center gap-4">
-                    <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsPlaying(!isPlaying)}
-                      >
-                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                      </Button>
-                    </motion.div>
-                    {yearRange.length < 2 ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const base = yearRange[0] ?? maxYear;
-                          const candidate = Math.min(base + 1, maxYear);
-                          const fallback = Math.max(minYear, base - 1);
-                          const next = candidate !== base ? candidate : fallback;
-                          onYearRangeChange([base, next].sort((a, b) => a - b));
-                        }}
-                      >
-                        Add comparison year
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onYearRangeChange([yearRange[0]])}
-                      >
-                        Remove comparison
-                      </Button>
-                    )}
-                    <span className="text-sm font-medium w-12">{minYear}</span>
-            <Slider
-              value={yearRange}
-              onValueChange={(values) => onYearRangeChange(values)}
-              min={minYear}
-              max={maxYear}
-              step={1}
-              minStepsBetweenThumbs={1}
-              className="flex-1"
-            />
-                    <span className="text-sm font-medium w-12">{maxYear}</span>
-                  </div>
-                  <motion.p
-                    className="text-xs text-muted-foreground mt-2 text-center"
-                    key={isComparing ? "comparing-text" : "single-text"}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {isComparing
-                      ? `Comparing ${yearRange[0]} and ${yearRange[1]}`
-                      : `Viewing ${yearRange[0]} • Use "Add comparison year" to compare`}
-                    <br />
-                    Some years may have limited data coverage.
-                  </motion.p>
-                </motion.div>
               </CardContent>
             </Card>
           </motion.div>
@@ -569,7 +640,21 @@ const DataVisualization = ({
         <TabsContent value="table" className="flex-1 p-6 m-0">
           <Card className="h-full">
             <CardHeader>
-              <CardTitle>Data Table</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle>Data Table</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Year</span>
+                  <select
+                    value={tableYear}
+                    onChange={(e) => setTableYear(Number(e.target.value))}
+                    className="h-8 px-2 text-sm rounded-md border border-input bg-background"
+                  >
+                    {Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -593,19 +678,19 @@ const DataVisualization = ({
                         <tr key={country} className="border-b border-border/50 hover:bg-muted/50">
                           <td className="py-3 px-4 font-medium">{country}</td>
                           <td className="text-right py-3 px-4">
-                            {mapDataByYear[yearRange[0]]?.[country] !== undefined
-                              ? mapDataByYear[yearRange[0]]?.[country].toLocaleString()
+                            {mapDataByYear[tableYear]?.[country] !== undefined
+                              ? mapDataByYear[tableYear]?.[country].toLocaleString()
                               : "—"}
                           </td>
-                          <td className="text-right py-3 px-4">{yearRange[0]}</td>
+                          <td className="text-right py-3 px-4">{tableYear}</td>
                         </tr>
                       ))
                     )}
                   </tbody>
                 </table>
               </div>
-              {totalPages > 1 && (
-                <div className="mt-4 flex items-center justify-between">
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
                   <Button
                     variant="outline"
                     size="sm"
@@ -646,7 +731,7 @@ const DataVisualization = ({
         {/* Line Chart View */}
         <TabsContent value="chart" className="flex-1 p-6 m-0">
           <motion.div
-            key={`chart-${yearRange.join('-')}`}
+            key={`chart-${trendYearFrom}-${trendYearTo}`}
             initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -655,19 +740,48 @@ const DataVisualization = ({
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center justify-between">
                   <span>Trend Analysis</span>
-                  {isComparing && (
-                    <motion.span
-                      className="text-sm font-normal text-muted-foreground"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      Comparing {yearRange[0]} vs {yearRange[1]}
-                    </motion.span>
-                  )}
+                  <motion.span
+                    className="text-sm font-normal text-muted-foreground"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    {trendYearFrom}–{trendYearTo}
+                  </motion.span>
                 </CardTitle>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span>From</span>
+                  <select
+                    value={trendYearFrom}
+                    onChange={(e) => setTrendYearFrom(Number(e.target.value))}
+                    className="h-8 px-2 text-sm rounded-md border border-input bg-background"
+                  >
+                    {Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <span>To</span>
+                  <select
+                    value={trendYearTo}
+                    onChange={(e) => setTrendYearTo(Number(e.target.value))}
+                    className="h-8 px-2 text-sm rounded-md border border-input bg-background"
+                  >
+                    {Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
               </CardHeader>
               <CardContent className="h-[400px]">
+                {trendLoading ? (
+                  <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                    Loading trend data...
+                  </div>
+                ) : trendData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                    No trend data available.
+                  </div>
+                ) : (
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={isComparing ? "comparing-chart" : "single-chart"}
@@ -824,6 +938,7 @@ const DataVisualization = ({
                     )}
                   </motion.div>
                 </AnimatePresence>
+                )}
               </CardContent>
             </Card>
           </motion.div>

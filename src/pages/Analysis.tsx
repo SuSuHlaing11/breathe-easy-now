@@ -36,7 +36,7 @@ const ageSortKey = (name: string) => {
   return { start: 9999, end: 9999 };
 };
 
-const DEFAULT_SELECTED_COUNTRIES = [
+const DEFAULT_TABLE_COUNTRIES = [
   "Indonesia",
   "Lao People's Democratic Republic",
   "Myanmar",
@@ -49,7 +49,7 @@ const Analysis = () => {
   const [searchParams] = useSearchParams();
   const role = (searchParams.get("role") as "user" | "admin") || "user";
   
-  const [selectedCountries, setSelectedCountries] = useState<string[]>(DEFAULT_SELECTED_COUNTRIES);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [pollutionType, setPollutionType] = useState("pm25");
   const [pollutionMetric, setPollutionMetric] = useState("value");
   const [healthArea, setHealthArea] = useState("all");
@@ -192,6 +192,7 @@ const Analysis = () => {
           
           <DataVisualization
             selectedCountries={selectedCountries}
+            defaultTableCountries={DEFAULT_TABLE_COUNTRIES}
             pollutionType={pollutionType}
             pollutionMetric={pollutionMetric}
             healthArea={healthArea}
