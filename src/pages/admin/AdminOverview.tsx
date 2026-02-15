@@ -3,8 +3,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Users, Database, Clock, TrendingUp, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { mockUploadRecords } from "@/data/mockData";
-import { listOrgApplications, listOrgs } from "@/lib/API";
+import { listOrgApplications, listOrgs, listUploads } from "@/lib/API";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminOverview = () => {
@@ -17,31 +16,30 @@ const AdminOverview = () => {
   });
 
   useEffect(() => {
-    // Keep uploads + recent activity mocked for now
-    const storedUploads = JSON.parse(localStorage.getItem("upload_records") || "[]");
-    const totalUploads = mockUploadRecords.length + storedUploads.length;
-
     const loadCounts = async () => {
       try {
-        const [pending, orgs] = await Promise.all([
+        const [pending, orgs, uploads] = await Promise.all([
           listOrgApplications("PENDING"),
           listOrgs(),
+          listUploads(),
         ]);
+        const uploadList = Array.isArray(uploads) ? uploads : [];
+        const now = Date.now();
+        const weekMs = 7 * 24 * 60 * 60 * 1000;
+        const recent = uploadList.filter((u: any) => {
+          const ts = Date.parse(u?.created_at);
+          return Number.isFinite(ts) && now - ts <= weekMs;
+        }).length;
         setStats({
           pendingRequests: Array.isArray(pending) ? pending.length : 0,
           totalOrganizations: Array.isArray(orgs) ? orgs.length : 0,
-          totalUploads,
-          recentActivity: 12,
+          totalUploads: uploadList.length,
+          recentActivity: recent,
         });
       } catch (err: any) {
         const message =
           err?.response?.data?.detail || err?.message || "Failed to load overview stats.";
         toast({ title: "Load failed", description: message, variant: "destructive" });
-        setStats((prev) => ({
-          ...prev,
-          totalUploads,
-          recentActivity: 12,
-        }));
       }
     };
 

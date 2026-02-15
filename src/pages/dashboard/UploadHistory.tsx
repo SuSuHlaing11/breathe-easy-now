@@ -28,6 +28,7 @@ import {
   listUploads,
   listUploadRecords,
   updateUploadRecord,
+  updatePollutionUploadRecord,
   deleteUpload,
   getIMHEMeasures,
   getIMHEMetrics,
@@ -65,6 +66,7 @@ const UploadHistory = () => {
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordError, setRecordError] = useState<string | null>(null);
   const [editRecord, setEditRecord] = useState<Record<string, any> | null>(null);
+  const [editMode, setEditMode] = useState<"health" | "pollution" | null>(null);
   const [editValues, setEditValues] = useState({
     measure_name: "",
     sex_name: "",
@@ -75,6 +77,22 @@ const UploadHistory = () => {
     val: "",
     upper: "",
     lower: "",
+  });
+  const [editPollutionValues, setEditPollutionValues] = useState({
+    location_name: "",
+    pollutant: "",
+    units: "",
+    year: "",
+    value: "",
+    latitude: "",
+    longitude: "",
+    min: "",
+    max: "",
+    median: "",
+    avg: "",
+    coverage_percent: "",
+    sensor_id: "",
+    location_id: "",
   });
 
   const [measureOptions, setMeasureOptions] = useState<string[]>([]);
@@ -205,44 +223,94 @@ const UploadHistory = () => {
     }
   };
 
-  const openEditRecord = (record: Record<string, any>) => {
+  const openEditRecord = (record: Record<string, any>, mode: "health" | "pollution") => {
     setEditRecord(record);
-    setEditValues({
-      measure_name: record.measure_name || "",
-      sex_name: record.sex_name || "",
-      age_name: record.age_name || "",
-      cause_name: record.cause_name || "",
-      metric_name: record.metric_name || "",
-      year: record.year?.toString() || "",
-      val: record.val?.toString() || "",
-      upper: record.upper?.toString() || "",
-      lower: record.lower?.toString() || "",
-    });
+    setEditMode(mode);
+    if (mode === "health") {
+      setEditValues({
+        measure_name: record.measure_name || "",
+        sex_name: record.sex_name || "",
+        age_name: record.age_name || "",
+        cause_name: record.cause_name || "",
+        metric_name: record.metric_name || "",
+        year: record.year?.toString() || "",
+        val: record.val?.toString() || "",
+        upper: record.upper?.toString() || "",
+        lower: record.lower?.toString() || "",
+      });
+    } else {
+      setEditPollutionValues({
+        location_name: record.location_name || "",
+        pollutant: record.pollutant || "",
+        units: record.units || "",
+        year: record.year?.toString() || "",
+        value: (record.value ?? record.val)?.toString() || "",
+        latitude: record.latitude?.toString() || "",
+        longitude: record.longitude?.toString() || "",
+        min: record.min?.toString() || "",
+        max: record.max?.toString() || "",
+        median: record.median?.toString() || "",
+        avg: record.avg?.toString() || "",
+        coverage_percent: record.coverage_percent?.toString() || "",
+        sensor_id: record.sensor_id?.toString() || "",
+        location_id: record.location_id?.toString() || "",
+      });
+    }
   };
 
   const saveEditRecord = async () => {
     if (!selectedUpload || !editRecord) return;
-    const year = Number(editValues.year);
-    const val = Number(editValues.val);
-    if (!editValues.measure_name || !editValues.sex_name || !editValues.age_name ||
-        !editValues.cause_name || !editValues.metric_name || !Number.isFinite(year) || !Number.isFinite(val)) {
-      setRecordError("Please fill all required fields.");
-      return;
-    }
-    const payload = {
-      measure_name: editValues.measure_name,
-      sex_name: editValues.sex_name,
-      age_name: editValues.age_name,
-      cause_name: editValues.cause_name,
-      metric_name: editValues.metric_name,
-      year,
-      val,
-      upper: editValues.upper ? Number(editValues.upper) : undefined,
-      lower: editValues.lower ? Number(editValues.lower) : undefined,
-    };
     try {
-      await updateUploadRecord(selectedUpload.upload_id, editRecord.id, payload);
+      if (editMode === "pollution") {
+        const year = Number(editPollutionValues.year);
+        const value = Number(editPollutionValues.value);
+        if (!editPollutionValues.location_name || !editPollutionValues.pollutant || !editPollutionValues.units ||
+            !Number.isFinite(year) || !Number.isFinite(value)) {
+          setRecordError("Please fill all required fields.");
+          return;
+        }
+        const payload = {
+          location_name: editPollutionValues.location_name,
+          pollutant: editPollutionValues.pollutant,
+          units: editPollutionValues.units,
+          year,
+          value,
+          latitude: editPollutionValues.latitude ? Number(editPollutionValues.latitude) : undefined,
+          longitude: editPollutionValues.longitude ? Number(editPollutionValues.longitude) : undefined,
+          min: editPollutionValues.min ? Number(editPollutionValues.min) : undefined,
+          max: editPollutionValues.max ? Number(editPollutionValues.max) : undefined,
+          median: editPollutionValues.median ? Number(editPollutionValues.median) : undefined,
+          avg: editPollutionValues.avg ? Number(editPollutionValues.avg) : undefined,
+          coverage_percent: editPollutionValues.coverage_percent
+            ? Number(editPollutionValues.coverage_percent)
+            : undefined,
+          sensor_id: editPollutionValues.sensor_id ? Number(editPollutionValues.sensor_id) : undefined,
+          location_id: editPollutionValues.location_id ? Number(editPollutionValues.location_id) : undefined,
+        };
+        await updatePollutionUploadRecord(selectedUpload.upload_id, editRecord.id, payload);
+      } else {
+        const year = Number(editValues.year);
+        const val = Number(editValues.val);
+        if (!editValues.measure_name || !editValues.sex_name || !editValues.age_name ||
+            !editValues.cause_name || !editValues.metric_name || !Number.isFinite(year) || !Number.isFinite(val)) {
+          setRecordError("Please fill all required fields.");
+          return;
+        }
+        const payload = {
+          measure_name: editValues.measure_name,
+          sex_name: editValues.sex_name,
+          age_name: editValues.age_name,
+          cause_name: editValues.cause_name,
+          metric_name: editValues.metric_name,
+          year,
+          val,
+          upper: editValues.upper ? Number(editValues.upper) : undefined,
+          lower: editValues.lower ? Number(editValues.lower) : undefined,
+        };
+        await updateUploadRecord(selectedUpload.upload_id, editRecord.id, payload);
+      }
       setEditRecord(null);
+      setEditMode(null);
       setRecordsPage(1);
       setDetailsOpen(true);
     } catch (err: any) {
@@ -457,6 +525,7 @@ const UploadHistory = () => {
                           <th className="text-right p-2">Coverage %</th>
                           <th className="text-right p-2">Lat</th>
                           <th className="text-right p-2">Lon</th>
+                          <th className="text-right p-2">Actions</th>
                         </>
                       ) : (
                         <>
@@ -484,6 +553,15 @@ const UploadHistory = () => {
                             <td className="p-2 text-right">{rec.coverage_percent ?? "—"}</td>
                             <td className="p-2 text-right">{rec.latitude ?? "—"}</td>
                             <td className="p-2 text-right">{rec.longitude ?? "—"}</td>
+                            <td className="p-2 text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditRecord(rec, "pollution")}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </td>
                           </>
                         ) : (
                           <>
@@ -498,8 +576,7 @@ const UploadHistory = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                disabled={selectedUpload?.data_domain === "POLLUTION"}
-                                onClick={() => openEditRecord(rec)}
+                                onClick={() => openEditRecord(rec, "health")}
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
@@ -556,114 +633,242 @@ const UploadHistory = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!editRecord} onOpenChange={() => setEditRecord(null)}>
+      <Dialog open={!!editRecord} onOpenChange={() => { setEditRecord(null); setEditMode(null); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Record</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Measure</Label>
-              <select
-                value={editValues.measure_name}
-                onChange={(e) => setEditValues((p) => ({ ...p, measure_name: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              >
-                <option value="">Select</option>
-                {measureOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+          {editMode === "pollution" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Location</Label>
+                <input
+                  value={editPollutionValues.location_name}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, location_name: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Pollutant</Label>
+                <input
+                  value={editPollutionValues.pollutant}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, pollutant: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Units</Label>
+                <input
+                  value={editPollutionValues.units}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, units: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Year</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.year}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, year: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Value</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.value}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, value: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Coverage %</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.coverage_percent}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, coverage_percent: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Lat</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.latitude}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, latitude: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Lon</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.longitude}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, longitude: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Min</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.min}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, min: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Max</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.max}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, max: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Median</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.median}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, median: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Avg</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.avg}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, avg: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Sensor ID</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.sensor_id}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, sensor_id: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Location ID</Label>
+                <input
+                  type="number"
+                  value={editPollutionValues.location_id}
+                  onChange={(e) => setEditPollutionValues((p) => ({ ...p, location_id: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Cause</Label>
-              <select
-                value={editValues.cause_name}
-                onChange={(e) => setEditValues((p) => ({ ...p, cause_name: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              >
-                <option value="">Select</option>
-                {causeOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Measure</Label>
+                <select
+                  value={editValues.measure_name}
+                  onChange={(e) => setEditValues((p) => ({ ...p, measure_name: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                >
+                  <option value="">Select</option>
+                  {measureOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Cause</Label>
+                <select
+                  value={editValues.cause_name}
+                  onChange={(e) => setEditValues((p) => ({ ...p, cause_name: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                >
+                  <option value="">Select</option>
+                  {causeOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Age</Label>
+                <select
+                  value={editValues.age_name}
+                  onChange={(e) => setEditValues((p) => ({ ...p, age_name: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                >
+                  <option value="">Select</option>
+                  {ageOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Sex</Label>
+                <select
+                  value={editValues.sex_name}
+                  onChange={(e) => setEditValues((p) => ({ ...p, sex_name: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                >
+                  <option value="">Select</option>
+                  {sexOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Metric</Label>
+                <select
+                  value={editValues.metric_name}
+                  onChange={(e) => setEditValues((p) => ({ ...p, metric_name: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                >
+                  <option value="">Select</option>
+                  {metricOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Year</Label>
+                <input
+                  type="number"
+                  value={editValues.year}
+                  onChange={(e) => setEditValues((p) => ({ ...p, year: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Value</Label>
+                <input
+                  type="number"
+                  value={editValues.val}
+                  onChange={(e) => setEditValues((p) => ({ ...p, val: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Upper</Label>
+                <input
+                  type="number"
+                  value={editValues.upper}
+                  onChange={(e) => setEditValues((p) => ({ ...p, upper: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Lower</Label>
+                <input
+                  type="number"
+                  value={editValues.lower}
+                  onChange={(e) => setEditValues((p) => ({ ...p, lower: e.target.value }))}
+                  className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Age</Label>
-              <select
-                value={editValues.age_name}
-                onChange={(e) => setEditValues((p) => ({ ...p, age_name: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              >
-                <option value="">Select</option>
-                {ageOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Sex</Label>
-              <select
-                value={editValues.sex_name}
-                onChange={(e) => setEditValues((p) => ({ ...p, sex_name: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              >
-                <option value="">Select</option>
-                {sexOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Metric</Label>
-              <select
-                value={editValues.metric_name}
-                onChange={(e) => setEditValues((p) => ({ ...p, metric_name: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              >
-                <option value="">Select</option>
-                {metricOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Year</Label>
-              <input
-                type="number"
-                value={editValues.year}
-                onChange={(e) => setEditValues((p) => ({ ...p, year: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Value</Label>
-              <input
-                type="number"
-                value={editValues.val}
-                onChange={(e) => setEditValues((p) => ({ ...p, val: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Upper</Label>
-              <input
-                type="number"
-                value={editValues.upper}
-                onChange={(e) => setEditValues((p) => ({ ...p, upper: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Lower</Label>
-              <input
-                type="number"
-                value={editValues.lower}
-                onChange={(e) => setEditValues((p) => ({ ...p, lower: e.target.value }))}
-                className="w-full h-9 px-3 text-sm rounded-md border border-input bg-background"
-              />
-            </div>
-          </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditRecord(null)}>
               Cancel

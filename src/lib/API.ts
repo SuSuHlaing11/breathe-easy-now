@@ -453,5 +453,22 @@ export const updateUploadRecord = async (uploadId: number, recordId: string, pay
   lower?: number;
 }) => (await api.patch(`/uploads/${uploadId}/records/${recordId}`, payload)).data;
 
+export const updatePollutionUploadRecord = async (uploadId: number, recordId: string, payload: {
+  location_name: string;
+  year: number;
+  pollutant: string;
+  units: string;
+  value: number;
+  latitude?: number;
+  longitude?: number;
+  min?: number;
+  max?: number;
+  median?: number;
+  avg?: number;
+  coverage_percent?: number;
+  sensor_id?: number;
+  location_id?: number;
+}) => (await api.patch(`/uploads/${uploadId}/pollution-records/${recordId}`, payload)).data;
+
 export const deleteUpload = async (uploadId: number) =>
   (await api.delete(`/uploads/${uploadId}`)).data;
