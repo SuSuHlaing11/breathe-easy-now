@@ -30,11 +30,12 @@ interface AnalysisFiltersProps {
 }
 
 const pollutionTypes = [
+  { value: "mixed", label: "Mixed (All Pollutants)" },
   { value: "pm25", label: "PM2.5" },
   { value: "pm10", label: "PM10" },
-  { value: "ozone", label: "Ozone (O₃)" },
-  { value: "no2", label: "Nitrogen Dioxide (NO₂)" },
-  { value: "so2", label: "Sulfur Dioxide (SO₂)" },
+  { value: "ozone", label: "Ozone (O3)" },
+  { value: "no2", label: "Nitrogen Dioxide (NO2)" },
+  { value: "so2", label: "Sulfur Dioxide (SO2)" },
   { value: "co", label: "Carbon Monoxide (CO)" },
 ];
 
@@ -119,7 +120,11 @@ const AnalysisFilters = ({
             <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
               Pollution Metric
             </label>
-            <Select value={pollutionMetric} onValueChange={onPollutionMetricChange}>
+            <Select
+              value={pollutionMetric}
+              onValueChange={onPollutionMetricChange}
+              disabled={pollutionType === "mixed"}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select pollution metric" />
               </SelectTrigger>
@@ -131,6 +136,11 @@ const AnalysisFilters = ({
                 ))}
               </SelectContent>
             </Select>
+            {pollutionType === "mixed" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Mixed pins use a shared scale; metric filter is disabled.
+              </p>
+            )}
           </div>
           </div>
         </div>
@@ -257,3 +267,4 @@ const AnalysisFilters = ({
 };
 
 export default AnalysisFilters;
+

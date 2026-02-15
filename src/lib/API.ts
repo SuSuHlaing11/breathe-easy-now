@@ -327,10 +327,28 @@ export interface OpenAQItem {
 export const getOpenAQList = async (params: {
   year: number;
   country_name?: string;
+  country_names?: string[];
   pollutant?: string;
   metric?: "value" | "avg" | "min" | "max" | "median";
   limit?: number;
-}) => (await api.get("/pollution/openaq", { params })).data as { total: number; items: OpenAQItem[] };
+  offset?: number;
+}) => {
+  if (Array.isArray(params.country_names) && params.country_names.length > 0) {
+    const query = new URLSearchParams();
+    query.set("year", String(params.year));
+    params.country_names.forEach((name) => query.append("country_names", name));
+    if (params.country_name) query.set("country_name", params.country_name);
+    if (params.pollutant) query.set("pollutant", params.pollutant);
+    if (params.metric) query.set("metric", params.metric);
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.offset !== undefined) query.set("offset", String(params.offset));
+    return (await api.get("/pollution/openaq", { params: query })).data as {
+      total: number;
+      items: OpenAQItem[];
+    };
+  }
+  return (await api.get("/pollution/openaq", { params })).data as { total: number; items: OpenAQItem[] };
+};
 
 export const getOpenAQTrend = async (params: {
   year_from: number;
@@ -340,6 +358,25 @@ export const getOpenAQTrend = async (params: {
   metric?: "value" | "avg" | "min" | "max" | "median";
   method?: "weighted" | "unweighted" | "balanced" | "median";
 }) => (await api.get("/pollution/openaq/trend", { params })).data as Array<{ year: number; value: number | null }>;
+
+export const getOpenAQPollutants = async (params?: { country_name?: string }) =>
+  (await api.get("/pollution/openaq/pollutants", { params })).data as { items: string[] };
+
+export const getOpenAQUnits = async (params?: { country_name?: string; pollutant?: string }) =>
+  (await api.get("/pollution/openaq/units", { params })).data as { items: string[] };
+
+export const getOpenAQLocations = async (params: { country_name?: string; q?: string; limit?: number }) =>
+  (await api.get("/pollution/openaq/locations", { params })).data as { items: string[] };
+
+export const geocodeLocation = async (params: { q: string; limit?: number }) =>
+  (await api.get("/pollution/openaq/geocode", { params })).data as {
+    items: Array<{ display_name: string; lat: string; lon: string }>;
+  };
+
+export const reverseGeocode = async (params: { lat: number; lon: number; zoom?: number }) =>
+  (await api.get("/pollution/openaq/reverse", { params })).data as {
+    address?: { country?: string; country_code?: string };
+  };
 
 /* ===============================
    HEALTH UPLOADS (IMHE)
@@ -368,6 +405,33 @@ export const uploadIMHERecord = async (payload: {
   upper?: number;
   lower?: number;
 }) => (await api.post("/uploads/health/record", payload)).data;
+
+export const uploadOpenAQCSVValidate = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return (await api.post("/uploads/pollution/csv/validate", formData)).data;
+};
+
+export const uploadOpenAQCSVConfirm = async (token: string) =>
+  (await api.post("/uploads/pollution/csv/confirm", null, { params: { token } })).data;
+
+export const listOpenAQDupes = async (token: string, params?: { limit?: number; offset?: number }) =>
+  (await api.get("/uploads/pollution/csv/dupes", { params: { token, ...(params || {}) } })).data;
+
+export const uploadOpenAQRecord = async (payload: {
+  location_name: string;
+  year: number;
+  pollutant: string;
+  units: string;
+  value: number;
+  latitude?: number;
+  longitude?: number;
+  min?: number;
+  max?: number;
+  median?: number;
+  avg?: number;
+  coverage_percent?: number;
+}) => (await api.post("/uploads/pollution/record", payload)).data;
 
 /* ===============================
    UPLOADS

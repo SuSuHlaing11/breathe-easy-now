@@ -54,6 +54,7 @@ const UploadHistory = () => {
   
   const [records, setRecords] = useState<BackendUpload[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [uploadsPage, setUploadsPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -110,7 +111,7 @@ const UploadHistory = () => {
       setRecordsLoading(true);
       setRecordError(null);
       try {
-        const limit = 20;
+        const limit = 6;
         const offset = (recordsPage - 1) * limit;
         const data = await listUploadRecords(selectedUpload.upload_id, { limit, offset });
         setUploadRecords(Array.isArray(data?.items) ? data.items : []);
@@ -162,6 +163,12 @@ const UploadHistory = () => {
     const label = `${record.mongo_collection} ${record.mongo_ref_id}`.toLowerCase();
     return label.includes(searchQuery.toLowerCase());
   });
+  const uploadsPageSize = 10;
+  const uploadsTotalPages = Math.max(1, Math.ceil(filteredRecords.length / uploadsPageSize));
+  const pagedUploads = filteredRecords.slice(
+    (uploadsPage - 1) * uploadsPageSize,
+    uploadsPage * uploadsPageSize
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -245,6 +252,19 @@ const UploadHistory = () => {
     }
   };
 
+  const getPaginationItems = (current: number, total: number) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 3) {
+      return [1, 2, 3, 4, "ellipsis", total];
+    }
+    if (current >= total - 2) {
+      return [1, "ellipsis", total - 3, total - 2, total - 1, total];
+    }
+    return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
+  };
+
   return (
     <div>
       <motion.div
@@ -266,7 +286,10 @@ const UploadHistory = () => {
                 <Input
                   placeholder="Search files..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setUploadsPage(1);
+                  }}
                   className="pl-9"
                 />
               </div>
@@ -286,73 +309,117 @@ const UploadHistory = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Batch</TableHead>
-                      <TableHead>Domain</TableHead>
-                      <TableHead>Country</TableHead>
-                      <TableHead>Uploaded</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <AnimatePresence>
-                      {filteredRecords.map((record, index) => (
-                        <motion.tr
-                          key={record.upload_id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: -20 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="border-b"
-                        >
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-muted-foreground" />
-                              <span title={record.mongo_ref_id}>
-                                {record.mongo_collection}:{record.mongo_ref_id.slice(0, 10)}...
-                              </span>
-                            </div>
-                            {record.error_message && record.status === "FAILED" && (
-                              <p className="text-xs text-destructive mt-1">
-                                {record.error_message}
-                              </p>
-                            )}
-                          </TableCell>
-                          <TableCell className="capitalize">{record.data_domain.toLowerCase()}</TableCell>
-                          <TableCell>{record.country}</TableCell>
-                          <TableCell>
-                            {new Date(record.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(record.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openDetails(record)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDelete(record)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </AnimatePresence>
-                  </TableBody>
-                </Table>
-              </div>
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Batch</TableHead>
+                        <TableHead>Domain</TableHead>
+                        <TableHead>Country</TableHead>
+                        <TableHead>Uploaded</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <AnimatePresence>
+                        {pagedUploads.map((record, index) => (
+                          <motion.tr
+                            key={record.upload_id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="border-b"
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <span title={record.mongo_ref_id}>
+                                  {record.mongo_collection}:{record.mongo_ref_id.slice(0, 10)}...
+                                </span>
+                              </div>
+                              {record.error_message && record.status === "FAILED" && (
+                                <p className="text-xs text-destructive mt-1">
+                                  {record.error_message}
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell className="capitalize">{record.data_domain.toLowerCase()}</TableCell>
+                            <TableCell>{record.country}</TableCell>
+                            <TableCell>
+                              {new Date(record.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDetails(record)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDelete(record)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
+                    </TableBody>
+                  </Table>
+                </div>
+                {filteredRecords.length > uploadsPageSize && (
+                  <div className="flex items-center justify-between pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadsPage === 1}
+                      onClick={() => setUploadsPage((p) => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {getPaginationItems(uploadsPage, uploadsTotalPages).map((item, idx) => {
+                        if (item === "ellipsis") {
+                          return (
+                            <span key={`uploads-ellipsis-${idx}`} className="px-2 text-xs text-muted-foreground">
+                              ...
+                            </span>
+                          );
+                        }
+                        const page = item as number;
+                        return (
+                          <Button
+                            key={`uploads-page-${page}`}
+                            variant={page === uploadsPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setUploadsPage(page)}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadsPage >= uploadsTotalPages}
+                      onClick={() => setUploadsPage((p) => Math.min(uploadsTotalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -381,35 +448,64 @@ const UploadHistory = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-2">Measure</th>
-                      <th className="text-left p-2">Cause</th>
-                      <th className="text-left p-2">Age</th>
-                      <th className="text-left p-2">Sex</th>
-                      <th className="text-left p-2">Metric</th>
-                      <th className="text-right p-2">Year</th>
-                      <th className="text-right p-2">Val</th>
-                      <th className="text-right p-2">Actions</th>
+                      {selectedUpload?.data_domain === "POLLUTION" ? (
+                        <>
+                          <th className="text-left p-2">Location</th>
+                          <th className="text-left p-2">Pollutant</th>
+                          <th className="text-right p-2">Year</th>
+                          <th className="text-right p-2">Value</th>
+                          <th className="text-right p-2">Coverage %</th>
+                          <th className="text-right p-2">Lat</th>
+                          <th className="text-right p-2">Lon</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="text-left p-2">Measure</th>
+                          <th className="text-left p-2">Cause</th>
+                          <th className="text-left p-2">Age</th>
+                          <th className="text-left p-2">Sex</th>
+                          <th className="text-left p-2">Metric</th>
+                          <th className="text-right p-2">Year</th>
+                          <th className="text-right p-2">Val</th>
+                          <th className="text-right p-2">Actions</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {uploadRecords.map((rec) => (
                       <tr key={rec.id} className="border-b">
-                        <td className="p-2">{rec.measure_name}</td>
-                        <td className="p-2">{rec.cause_name}</td>
-                        <td className="p-2">{rec.age_name}</td>
-                        <td className="p-2">{rec.sex_name}</td>
-                        <td className="p-2">{rec.metric_name}</td>
-                        <td className="p-2 text-right">{rec.year}</td>
-                        <td className="p-2 text-right">{rec.val}</td>
-                        <td className="p-2 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditRecord(rec)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        </td>
+                        {selectedUpload?.data_domain === "POLLUTION" ? (
+                          <>
+                            <td className="p-2">{rec.location_name}</td>
+                            <td className="p-2">{rec.pollutant}</td>
+                            <td className="p-2 text-right">{rec.year}</td>
+                            <td className="p-2 text-right">{rec.value ?? rec.val}</td>
+                            <td className="p-2 text-right">{rec.coverage_percent ?? "—"}</td>
+                            <td className="p-2 text-right">{rec.latitude ?? "—"}</td>
+                            <td className="p-2 text-right">{rec.longitude ?? "—"}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="p-2">{rec.measure_name}</td>
+                            <td className="p-2">{rec.cause_name}</td>
+                            <td className="p-2">{rec.age_name}</td>
+                            <td className="p-2">{rec.sex_name}</td>
+                            <td className="p-2">{rec.metric_name}</td>
+                            <td className="p-2 text-right">{rec.year}</td>
+                            <td className="p-2 text-right">{rec.val}</td>
+                            <td className="p-2 text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={selectedUpload?.data_domain === "POLLUTION"}
+                                onClick={() => openEditRecord(rec)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -424,13 +520,32 @@ const UploadHistory = () => {
                 >
                   Previous
                 </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {recordsPage} of {Math.max(1, Math.ceil(recordsTotal / 20))}
-                </span>
+                <div className="flex items-center gap-1">
+                  {getPaginationItems(recordsPage, Math.max(1, Math.ceil(recordsTotal / 6))).map((item, idx) => {
+                    if (item === "ellipsis") {
+                      return (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-xs text-muted-foreground">
+                          ...
+                        </span>
+                      );
+                    }
+                    const page = item as number;
+                    return (
+                      <Button
+                        key={page}
+                        variant={page === recordsPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setRecordsPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={recordsPage >= Math.ceil(recordsTotal / 20)}
+                  disabled={recordsPage >= Math.ceil(recordsTotal / 6)}
                   onClick={() => setRecordsPage((p) => p + 1)}
                 >
                   Next

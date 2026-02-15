@@ -65,7 +65,22 @@ const getColor = (value: number, min: number, max: number): string => {
   return "#B30000";
 };
 
-const PIN_COLORS = ["#F3E8FF", "#E9D5FF", "#D8B4FE", "#C084FC", "#A855F7", "#7E22CE", "#5B21B6"];
+const POLLUTANT_PIN_COLORS: Record<string, string[]> = {
+  "PM2.5": ["#F3E8FF", "#E9D5FF", "#D8B4FE", "#C084FC", "#A855F7", "#7E22CE", "#5B21B6"],
+  "PM10": ["#EFF6FF", "#DBEAFE", "#BFDBFE", "#93C5FD", "#60A5FA", "#3B82F6", "#1D4ED8"],
+  "NO₂": ["#ECFEFF", "#CFFAFE", "#A5F3FC", "#67E8F9", "#22D3EE", "#06B6D4", "#0E7490"],
+  "O₃": ["#FFF7ED", "#FFEDD5", "#FED7AA", "#FDBA74", "#FB923C", "#F97316", "#C2410C"],
+  "SO₂": ["#FEE2E2", "#FECACA", "#FCA5A5", "#F87171", "#EF4444", "#DC2626", "#991B1B"],
+  "CO": ["#F5F5F4", "#E7E5E4", "#D6D3D1", "#A8A29E", "#78716C", "#57534E", "#44403C"],
+};
+
+const DEFAULT_PIN_COLORS = POLLUTANT_PIN_COLORS["PM2.5"];
+
+const normalizePollutant = (value: string) => {
+  const trimmed = value.trim();
+  if (trimmed.endsWith(" mass")) return trimmed.replace(" mass", "");
+  return trimmed;
+};
 
 const getPercentile = (values: number[], p: number) => {
   if (!values.length) return null;
@@ -74,11 +89,20 @@ const getPercentile = (values: number[], p: number) => {
   return sorted[idx];
 };
 
-const getPinColor = (value: number, min: number, max: number): string => {
-  if (!Number.isFinite(value) || max <= min) return PIN_COLORS[0];
+const buildPinStats = (values: number[]) => {
+  if (!values.length) return { min: 0, max: 1 };
+  const p05 = getPercentile(values, 0.05);
+  const p95 = getPercentile(values, 0.95);
+  const min = p05 !== null ? p05 : Math.min(...values);
+  const max = p95 !== null ? p95 : Math.max(...values);
+  return { min, max: max > min ? max : min + 1 };
+};
+
+const getPinColor = (value: number, min: number, max: number, colors: string[]): string => {
+  if (!Number.isFinite(value) || max <= min) return colors[0] || DEFAULT_PIN_COLORS[0];
   const ratio = (value - min) / (max - min);
-  const idx = Math.min(PIN_COLORS.length - 1, Math.max(0, Math.floor(ratio * (PIN_COLORS.length - 1))));
-  return PIN_COLORS[idx];
+  const idx = Math.min(colors.length - 1, Math.max(0, Math.floor(ratio * (colors.length - 1))));
+  return colors[idx] || DEFAULT_PIN_COLORS[0];
 };
 
 const LeafletMap = ({
@@ -100,6 +124,7 @@ const LeafletMap = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
   const pinLayerRef = useRef<L.LayerGroup | null>(null);
+  const pinPaneRef = useRef<string>("pins");
 
   const normalizedData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -153,6 +178,15 @@ const LeafletMap = ({
         maxBoundsViscosity: 0.9,
         worldCopyJump: false,
       });
+
+      const paneName = pinPaneRef.current;
+      if (!mapInstanceRef.current.getPane(paneName)) {
+        mapInstanceRef.current.createPane(paneName);
+      }
+      const pinPane = mapInstanceRef.current.getPane(paneName);
+      if (pinPane) {
+        pinPane.style.zIndex = "650";
+      }
 
       L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
         attribution:
@@ -263,22 +297,42 @@ const LeafletMap = ({
     const numericValues = pins
       .map((p) => p.metric_value)
       .filter((v) => typeof v === "number" && Number.isFinite(v)) as number[];
-    const p05 = getPercentile(numericValues, 0.05);
-    const p95 = getPercentile(numericValues, 0.95);
-    const minPin = p05 !== null ? p05 : (numericValues.length ? Math.min(...numericValues) : 0);
-    const maxPin = p95 !== null ? p95 : (numericValues.length ? Math.max(...numericValues) : 1);
+    const globalStats = buildPinStats(numericValues);
+    const statsByPollutant = pins.reduce<Record<string, { min: number; max: number }>>(
+      (acc, pin) => {
+        const value = typeof pin.metric_value === "number" ? pin.metric_value : null;
+        if (value === null || !Number.isFinite(value)) return acc;
+        const key = normalizePollutant(pin.pollutant);
+        if (!acc[key]) acc[key] = { min: value, max: value };
+        acc[key].min = Math.min(acc[key].min, value);
+        acc[key].max = Math.max(acc[key].max, value);
+        return acc;
+      },
+      {}
+    );
+    Object.keys(statsByPollutant).forEach((key) => {
+      const values = pins
+        .filter((p) => normalizePollutant(p.pollutant) === key)
+        .map((p) => p.metric_value)
+        .filter((v) => typeof v === "number" && Number.isFinite(v)) as number[];
+      statsByPollutant[key] = buildPinStats(values);
+    });
 
     pins.forEach((pin) => {
       if (!Number.isFinite(pin.latitude) || !Number.isFinite(pin.longitude)) return;
       const value = typeof pin.metric_value === "number" ? pin.metric_value : null;
       const radius = 6;
-      const color = value !== null ? getPinColor(value, minPin, maxPin) : PIN_COLORS[0];
+      const normalizedPollutant = normalizePollutant(pin.pollutant);
+      const palette = POLLUTANT_PIN_COLORS[normalizedPollutant] || DEFAULT_PIN_COLORS;
+      const stats = statsByPollutant[normalizedPollutant] || globalStats;
+      const color = value !== null ? getPinColor(value, stats.min, stats.max, palette) : palette[0];
       const marker = L.circleMarker([pin.latitude, pin.longitude], {
         radius,
         fillColor: color,
         fillOpacity: 0.7,
         color: "#4C1D95",
         weight: 1,
+        pane: pinPaneRef.current,
       });
       const valueLabel = value !== null ? value.toLocaleString() : "No data";
       const coverageLabel =
@@ -288,7 +342,7 @@ const LeafletMap = ({
       marker.bindTooltip(
         `<div style="font-family: system-ui; font-size: 12px;">
           <div style="font-weight: 600; margin-bottom: 4px;">${pin.location_name}</div>
-          <div style="color: #6A8D8D;">${pin.pollutant} • ${year}</div>
+          <div style="color: #6A8D8D;">${normalizedPollutant} • ${year}</div>
           <div style="margin-top: 6px;">
             <span style="color:#6A8D8D;">${pinsMetricLabel}:</span>
             <span style="font-weight: 600; margin-left: 4px;">${valueLabel} ${pin.units}</span>
