@@ -89,6 +89,7 @@ const DataVisualization = ({
   const [trendYearFrom, setTrendYearFrom] = useState<number>(2020);
   const [trendYearTo, setTrendYearTo] = useState<number>(2023);
   const [mapYear, setMapYear] = useState<number>(yearRange[0]);
+  const [pollutionTrendMethod, setPollutionTrendMethod] = useState<"weighted" | "unweighted" | "balanced" | "median">("weighted");
   const isComparing = yearRange.length === 2;
   const prefersReducedMotion = useReducedMotion();
 
@@ -105,8 +106,8 @@ const DataVisualization = ({
     pm25: "PM2.5",
     pm10: "PM10",
     ozone: "Ozone",
-    no2: "NOâ‚‚",
-    so2: "SOâ‚‚",
+    no2: "NO₂",
+    so2: "SO₂",
     co: "CO",
   };
 
@@ -131,7 +132,7 @@ const DataVisualization = ({
       setMapDataByYear({});
       setMapPollutionByYear({});
       try {
-        const years = Array.from(new Set(yearRange)).sort((a, b) => a - b);
+        const years = [mapYear];
         const params: any = {};
         if (measureNameMap[metric]) params.measure_name = measureNameMap[metric];
         if (causeName && causeName !== "all") params.cause_name = causeName;
@@ -146,9 +147,11 @@ const DataVisualization = ({
             });
             const map: Record<string, number> = {};
             const pollutionMap: Record<string, number | null> = {};
-            (rows || []).forEach((row: { country: string; value: number; pollution_pm25?: number | null }) => {
+            (rows || []).forEach((row: { country: string; value: number; pollution_value?: number | null; pollution_pm25?: number | null }) => {
               map[row.country] = row.value;
-              if (row.pollution_pm25 !== undefined) {
+              if (row.pollution_value !== undefined) {
+                pollutionMap[row.country] = row.pollution_value ?? null;
+              } else if (row.pollution_pm25 !== undefined) {
                 pollutionMap[row.country] = row.pollution_pm25 ?? null;
               }
             });
@@ -174,14 +177,14 @@ const DataVisualization = ({
       }
     };
     load();
-  }, [yearRange, metric, causeName, ageName, sexName]);
+  }, [mapYear, metric, causeName, ageName, sexName]);
 
   useEffect(() => {
     const loadPins = async () => {
       setOpenaqLoading(true);
       setOpenaqPinsByYear({});
       try {
-        const years = Array.from(new Set(yearRange)).sort((a, b) => a - b);
+        const years = [mapYear];
         const countryFilter =
           selectedCountries.length === 1 ? selectedCountries[0] : undefined;
         const pollutant = pollutionParamMap[pollutionType] || pollutionType;
@@ -223,7 +226,7 @@ const DataVisualization = ({
       }
     };
     loadPins();
-  }, [yearRange, selectedCountries, pollutionType, pollutionMetric]);
+  }, [mapYear, selectedCountries, pollutionType, pollutionMetric]);
 
   useEffect(() => {
     const loadPercentiles = async () => {
@@ -281,17 +284,6 @@ const DataVisualization = ({
         const rangeFrom = Math.min(trendYearFrom, trendYearTo);
         const rangeTo = Math.max(trendYearFrom, trendYearTo);
 
-        console.groupCollapsed("[trend] request params");
-        console.log("healthParams:", healthParams);
-        console.log("pollutionParams:", {
-          year_from: rangeFrom,
-          year_to: rangeTo,
-          country_name: countryFilter,
-          pollutant,
-          metric: pollutionMetric,
-        });
-        console.groupEnd();
-
         const [healthRes, pollutionRes] = await Promise.allSettled([
           getIMHETrend({
             ...healthParams,
@@ -304,6 +296,7 @@ const DataVisualization = ({
             country_name: countryFilter,
             pollutant,
             metric: pollutionMetric as any,
+            method: pollutionTrendMethod,
           }),
         ]);
 
@@ -313,23 +306,6 @@ const DataVisualization = ({
           pollutionRes.status === "fulfilled" ? pollutionRes.value : [];
         const healthList = Array.isArray(healthSeries) ? healthSeries : [];
         const pollutionList = Array.isArray(pollutionSeries) ? pollutionSeries : [];
-
-        console.groupCollapsed("[trend] response samples");
-        console.log("health status:", healthRes.status);
-        if (healthRes.status === "rejected") {
-          console.log("health error:", healthRes.reason);
-        } else {
-          console.log("health count:", healthList.length);
-          if (!Array.isArray(healthSeries)) console.log("health payload not array:", healthSeries);
-        }
-        console.log("pollution status:", pollutionRes.status);
-        if (pollutionRes.status === "rejected") {
-          console.log("pollution error:", pollutionRes.reason);
-        } else {
-          console.log("pollution count:", pollutionList.length);
-          if (!Array.isArray(pollutionSeries)) console.log("pollution payload not array:", pollutionSeries);
-        }
-        console.groupEnd();
 
         try {
           const healthMap = new Map<string, number | null>();
@@ -355,14 +331,8 @@ const DataVisualization = ({
             healthValue: healthMap.get(year) ?? null,
             pollutionValue: pollutionMap.get(year) ?? null,
           }));
-          console.groupCollapsed("[trend] merged");
-          console.log("years:", years);
-          console.log("merged length:", merged.length);
-          console.log("merged sample:", merged.slice(0, 3));
-          console.groupEnd();
           setTrendData([...merged]);
         } catch (mergeErr) {
-          console.error("[trend] merge error:", mergeErr);
           setTrendData([]);
         }
       } catch {
@@ -372,7 +342,7 @@ const DataVisualization = ({
       }
     };
     loadTrend();
-  }, [metric, causeName, ageName, sexName, pollutionType, pollutionMetric, selectedCountries, trendYearFrom, trendYearTo]);
+  }, [metric, causeName, ageName, sexName, pollutionType, pollutionMetric, pollutionTrendMethod, selectedCountries, trendYearFrom, trendYearTo]);
 
   
   useEffect(() => {
@@ -442,6 +412,33 @@ const DataVisualization = ({
     transition: { duration: 0.3 }
   };
 
+  const PIN_COLORS = ["#F3E8FF", "#E9D5FF", "#D8B4FE", "#C084FC", "#A855F7", "#7E22CE", "#5B21B6"];
+
+  const getPercentile = (values: number[], p: number) => {
+    if (!values.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
+    return sorted[idx];
+  };
+
+  const pinScale = useMemo(() => {
+    const years = [mapYear];
+    const values: number[] = [];
+    years.forEach((y) => {
+      (openaqPinsByYear[y] || []).forEach((p) => {
+        if (typeof p.metric_value === "number" && Number.isFinite(p.metric_value)) {
+          values.push(p.metric_value);
+        }
+      });
+    });
+    if (!values.length) return null;
+    const p05 = getPercentile(values, 0.05);
+    const p95 = getPercentile(values, 0.95);
+    const min = p05 !== null ? p05 : Math.min(...values);
+    const max = p95 !== null ? p95 : Math.max(...values);
+    return { min, max };
+  }, [openaqPinsByYear, mapYear]);
+
   // Helper to render a single map using Leaflet
   const renderMap = (yearValue: number, index: number = 0) => (
     <motion.div 
@@ -469,7 +466,7 @@ const DataVisualization = ({
           metricLabel={metricLabels[metric]}
           dataByCountry={mapDataByYear[yearValue] || {}}
           pollutionByCountry={mapPollutionByYear[yearValue] || {}}
-          pollutionLabel="PM2.5 (coverage avg)"
+          pollutionLabel={`${pollutionLabels[pollutionType]} (coverage avg)`}
           pins={openaqPinsByYear[yearValue] || []}
           pinsMetricLabel={pollutionMetric}
           pinsLoading={openaqLoading}
@@ -563,7 +560,6 @@ const DataVisualization = ({
                     onChange={(e) => {
                       const next = Number(e.target.value);
                       setMapYear(next);
-                      onYearRangeChange([next]);
                     }}
                     className="h-8 px-2 text-sm rounded-md border border-input bg-background"
                   >
@@ -631,6 +627,27 @@ const DataVisualization = ({
                   </div>
                 </div>
               </div>
+              {pinScale && (
+                <div className="mt-3 flex flex-col gap-1 bg-card rounded-lg p-3 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-xs text-muted-foreground">
+                      Pollution pins: {pollutionLabels[pollutionType]}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      P5–P95: {pinScale.min.toLocaleString()} - {pinScale.max.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <span className="text-xs text-muted-foreground mr-2">Low</span>
+                    <div className="flex">
+                      {PIN_COLORS.map((c) => (
+                        <div key={c} className="w-8 h-4" style={{ background: c }} />
+                      ))}
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-2">High</span>
+                  </div>
+                </div>
+              )}
               </CardContent>
             </Card>
           </motion.div>
@@ -769,6 +786,17 @@ const DataVisualization = ({
                     {Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i).map((y) => (
                       <option key={y} value={y}>{y}</option>
                     ))}
+                  </select>
+                  <span>Method</span>
+                  <select
+                    value={pollutionTrendMethod}
+                    onChange={(e) => setPollutionTrendMethod(e.target.value as any)}
+                    className="h-8 px-2 text-sm rounded-md border border-input bg-background"
+                  >
+                    <option value="weighted">Weighted</option>
+                    <option value="unweighted">Unweighted</option>
+                    <option value="balanced">Balanced</option>
+                    <option value="median">Median</option>
                   </select>
                 </div>
               </CardHeader>

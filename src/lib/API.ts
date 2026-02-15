@@ -276,7 +276,10 @@ export const getIMHEMetrics = async (params?: {
 }) => (await api.get("/health/imhe/metrics", { params })).data;
 
 export const getIMHETrend = async (params?: {
+  year_from?: number;
+  year_to?: number;
   measure_name?: string;
+  metric_name?: string;
   cause_name?: string;
   age_name?: string;
   sex_name?: string;
@@ -335,6 +338,7 @@ export const getOpenAQTrend = async (params: {
   pollutant?: string;
   country_name?: string;
   metric?: "value" | "avg" | "min" | "max" | "median";
+  method?: "weighted" | "unweighted" | "balanced" | "median";
 }) => (await api.get("/pollution/openaq/trend", { params })).data as Array<{ year: number; value: number | null }>;
 
 /* ===============================

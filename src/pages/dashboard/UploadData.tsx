@@ -702,7 +702,7 @@ const handleManualSubmit = async () => {
                     <li>Ensure data is properly formatted with headers</li>
                     <li>Include date/timestamp columns where applicable</li>
                     <li>Remove any personally identifiable information</li>
-                    <li>Use standard units (Âµg/mÂ³ for pollution, per 100k for health rates)</li>
+                    <li>Use standard units (µg/m³ for pollution, per 100k for health rates)</li>
                   </ul>
                 </div>
               </div>

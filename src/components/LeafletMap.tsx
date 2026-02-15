@@ -65,13 +65,29 @@ const getColor = (value: number, min: number, max: number): string => {
   return "#B30000";
 };
 
+const PIN_COLORS = ["#F3E8FF", "#E9D5FF", "#D8B4FE", "#C084FC", "#A855F7", "#7E22CE", "#5B21B6"];
+
+const getPercentile = (values: number[], p: number) => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
+  return sorted[idx];
+};
+
+const getPinColor = (value: number, min: number, max: number): string => {
+  if (!Number.isFinite(value) || max <= min) return PIN_COLORS[0];
+  const ratio = (value - min) / (max - min);
+  const idx = Math.min(PIN_COLORS.length - 1, Math.max(0, Math.floor(ratio * (PIN_COLORS.length - 1))));
+  return PIN_COLORS[idx];
+};
+
 const LeafletMap = ({
   selectedCountries,
   year,
   metricLabel = "Rate per 100,000",
   dataByCountry,
   pollutionByCountry = {},
-  pollutionLabel = "PM2.5 (coverage avg)",
+  pollutionLabel = "Pollution (coverage avg)",
   pins = [],
   pinsMetricLabel = "value",
   pinsLoading = false,
@@ -247,23 +263,21 @@ const LeafletMap = ({
     const numericValues = pins
       .map((p) => p.metric_value)
       .filter((v) => typeof v === "number" && Number.isFinite(v)) as number[];
-    const minPin = numericValues.length ? Math.min(...numericValues) : 0;
-    const maxPin = numericValues.length ? Math.max(...numericValues) : 1;
-    const scale = (value: number) => {
-      if (!Number.isFinite(value) || maxPin <= minPin) return 4;
-      const ratio = (value - minPin) / (maxPin - minPin);
-      return 4 + ratio * 8;
-    };
+    const p05 = getPercentile(numericValues, 0.05);
+    const p95 = getPercentile(numericValues, 0.95);
+    const minPin = p05 !== null ? p05 : (numericValues.length ? Math.min(...numericValues) : 0);
+    const maxPin = p95 !== null ? p95 : (numericValues.length ? Math.max(...numericValues) : 1);
 
     pins.forEach((pin) => {
       if (!Number.isFinite(pin.latitude) || !Number.isFinite(pin.longitude)) return;
       const value = typeof pin.metric_value === "number" ? pin.metric_value : null;
-      const radius = value !== null ? scale(value) : 4;
+      const radius = 6;
+      const color = value !== null ? getPinColor(value, minPin, maxPin) : PIN_COLORS[0];
       const marker = L.circleMarker([pin.latitude, pin.longitude], {
         radius,
-        fillColor: "#2563eb",
+        fillColor: color,
         fillOpacity: 0.7,
-        color: "#1e40af",
+        color: "#4C1D95",
         weight: 1,
       });
       const valueLabel = value !== null ? value.toLocaleString() : "No data";
