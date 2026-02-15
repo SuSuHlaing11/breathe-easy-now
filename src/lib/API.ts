@@ -222,6 +222,17 @@ export const getIMHECountrySummary = async (params: {
   location_name?: string;
 }) => (await api.get("/health/imhe/country-summary", { params })).data;
 
+export const getIMHECountrySummaryWithPollution = async (params: {
+  year: number;
+  pollutant?: string;
+  measure_name?: string;
+  cause_name?: string;
+  cause_name_contains?: string;
+  age_name?: string;
+  sex_name?: string;
+  location_name?: string;
+}) => (await api.get("/health/imhe/country-summary-with-pollution", { params })).data;
+
 export const getIMHEAges = async (params?: {
   year?: number;
   measure_name?: string;
@@ -287,6 +298,36 @@ export const getIMHEPercentiles = async (params?: {
   sex_name?: string;
   location_name?: string;
 }) => (await api.get("/health/imhe/percentiles", { params })).data;
+
+/* ===============================
+   POLLUTION (OpenAQ)
+=============================== */
+export interface OpenAQItem {
+  location_name: string;
+  pollutant: string;
+  units: string;
+  coverage_percent?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  country_name?: string | null;
+  country_code?: string | null;
+  year?: number | null;
+  value?: number | null;
+  min?: number | null;
+  max?: number | null;
+  median?: number | null;
+  avg?: number | null;
+  metric: string;
+  metric_value?: number | null;
+}
+
+export const getOpenAQList = async (params: {
+  year: number;
+  country_name?: string;
+  pollutant?: string;
+  metric?: "value" | "avg" | "min" | "max" | "median";
+  limit?: number;
+}) => (await api.get("/pollution/openaq", { params })).data as { total: number; items: OpenAQItem[] };
 
 /* ===============================
    HEALTH UPLOADS (IMHE)

@@ -51,6 +51,7 @@ const Analysis = () => {
   
   const [selectedCountries, setSelectedCountries] = useState<string[]>(DEFAULT_SELECTED_COUNTRIES);
   const [pollutionType, setPollutionType] = useState("pm25");
+  const [pollutionMetric, setPollutionMetric] = useState("value");
   const [healthArea, setHealthArea] = useState("all");
   const [metric, setMetric] = useState("rate");
   const [ageName, setAgeName] = useState("all");
@@ -65,6 +66,7 @@ const Analysis = () => {
 
   const resetFilters = () => {
     setPollutionType("pm25");
+    setPollutionMetric("value");
     setHealthArea("all");
     setMetric("rate");
     setAgeName("all");
@@ -169,6 +171,7 @@ const Analysis = () => {
         <div className="flex-1 flex flex-col">
         <AnalysisFilters
           pollutionType={pollutionType}
+          pollutionMetric={pollutionMetric}
           healthArea={healthArea}
           metric={metric}
           ageName={ageName}
@@ -178,6 +181,7 @@ const Analysis = () => {
           causeName={causeName}
           causeOptions={causeOptions}
           onPollutionTypeChange={setPollutionType}
+          onPollutionMetricChange={setPollutionMetric}
           onHealthAreaChange={setHealthArea}
           onMetricChange={setMetric}
           onAgeChange={setAgeName}
@@ -189,6 +193,7 @@ const Analysis = () => {
           <DataVisualization
             selectedCountries={selectedCountries}
             pollutionType={pollutionType}
+            pollutionMetric={pollutionMetric}
             healthArea={healthArea}
             metric={metric}
             ageName={ageName}

@@ -7,6 +7,19 @@ interface LeafletMapProps {
   year: number;
   metricLabel?: string;
   dataByCountry: Record<string, number>;
+  pollutionByCountry?: Record<string, number | null>;
+  pollutionLabel?: string;
+  pins?: Array<{
+    latitude: number;
+    longitude: number;
+    location_name: string;
+    pollutant: string;
+    units: string;
+    coverage_percent?: number | null;
+    metric_value?: number | null;
+  }>;
+  pinsMetricLabel?: string;
+  pinsLoading?: boolean;
   scaleMin?: number;
   scaleMax?: number;
   isLoading?: boolean;
@@ -57,6 +70,11 @@ const LeafletMap = ({
   year,
   metricLabel = "Rate per 100,000",
   dataByCountry,
+  pollutionByCountry = {},
+  pollutionLabel = "PM2.5 (coverage avg)",
+  pins = [],
+  pinsMetricLabel = "value",
+  pinsLoading = false,
   scaleMin,
   scaleMax,
   isLoading = false,
@@ -65,6 +83,7 @@ const LeafletMap = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const geoJsonLayerRef = useRef<L.GeoJSON | null>(null);
+  const pinLayerRef = useRef<L.LayerGroup | null>(null);
 
   const normalizedData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -73,6 +92,14 @@ const LeafletMap = ({
     });
     return map;
   }, [dataByCountry]);
+
+  const normalizedPollution = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    Object.entries(pollutionByCountry || {}).forEach(([k, v]) => {
+      map[normalizeCountryName(k)] = v ?? null;
+    });
+    return map;
+  }, [pollutionByCountry]);
 
   const values = useMemo(
     () => Object.values(normalizedData).filter((v) => Number.isFinite(v)),
@@ -117,6 +144,7 @@ const LeafletMap = ({
         subdomains: "abcd",
         maxZoom: 19,
       }).addTo(mapInstanceRef.current);
+      pinLayerRef.current = L.layerGroup().addTo(mapInstanceRef.current);
     }
   }, []);
 
@@ -184,6 +212,11 @@ const LeafletMap = ({
       });
 
       const displayValue = hasValue ? value.toLocaleString() : "No data";
+      const pollutionValue = normalizedPollution[name];
+      const pollutionLabelValue =
+        pollutionValue !== null && pollutionValue !== undefined
+          ? pollutionValue.toLocaleString()
+          : "No data";
       l.bindTooltip(
         `<div style=\"font-family: system-ui; font-size: 12px;\">
           <div style=\"font-weight: 600; margin-bottom: 4px;\">${rawName}</div>
@@ -192,11 +225,70 @@ const LeafletMap = ({
             <span style=\"color:#6A8D8D;\">${metricLabel}:</span>
             <span style=\"font-weight: 600; margin-left: 4px;\">${displayValue}</span>
           </div>
+          <div style=\"margin-top: 6px;\">
+            <span style=\"color:#6A8D8D;\">${pollutionLabel}:</span>
+            <span style=\"font-weight: 600; margin-left: 4px;\">${pollutionLabelValue}</span>
+          </div>
         </div>`,
         { sticky: true }
       );
     });
-  }, [normalizedData, selectedCountries, year, metricLabel, minValue, maxValue]);
+  }, [normalizedData, normalizedPollution, selectedCountries, year, metricLabel, pollutionLabel, minValue, maxValue]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (!pinLayerRef.current) {
+      pinLayerRef.current = L.layerGroup().addTo(map);
+    }
+    const layer = pinLayerRef.current;
+    layer.clearLayers();
+
+    const numericValues = pins
+      .map((p) => p.metric_value)
+      .filter((v) => typeof v === "number" && Number.isFinite(v)) as number[];
+    const minPin = numericValues.length ? Math.min(...numericValues) : 0;
+    const maxPin = numericValues.length ? Math.max(...numericValues) : 1;
+    const scale = (value: number) => {
+      if (!Number.isFinite(value) || maxPin <= minPin) return 4;
+      const ratio = (value - minPin) / (maxPin - minPin);
+      return 4 + ratio * 8;
+    };
+
+    pins.forEach((pin) => {
+      if (!Number.isFinite(pin.latitude) || !Number.isFinite(pin.longitude)) return;
+      const value = typeof pin.metric_value === "number" ? pin.metric_value : null;
+      const radius = value !== null ? scale(value) : 4;
+      const marker = L.circleMarker([pin.latitude, pin.longitude], {
+        radius,
+        fillColor: "#2563eb",
+        fillOpacity: 0.7,
+        color: "#1e40af",
+        weight: 1,
+      });
+      const valueLabel = value !== null ? value.toLocaleString() : "No data";
+      const coverageLabel =
+        pin.coverage_percent !== null && pin.coverage_percent !== undefined
+          ? `${pin.coverage_percent}%`
+          : "N/A";
+      marker.bindTooltip(
+        `<div style="font-family: system-ui; font-size: 12px;">
+          <div style="font-weight: 600; margin-bottom: 4px;">${pin.location_name}</div>
+          <div style="color: #6A8D8D;">${pin.pollutant} • ${year}</div>
+          <div style="margin-top: 6px;">
+            <span style="color:#6A8D8D;">${pinsMetricLabel}:</span>
+            <span style="font-weight: 600; margin-left: 4px;">${valueLabel} ${pin.units}</span>
+          </div>
+          <div style="margin-top: 4px;">
+            <span style="color:#6A8D8D;">Coverage:</span>
+            <span style="font-weight: 600; margin-left: 4px;">${coverageLabel}</span>
+          </div>
+        </div>`,
+        { sticky: true }
+      );
+      marker.addTo(layer);
+    });
+  }, [pins, pinsMetricLabel, year]);
 
   useEffect(() => {
     return () => {
@@ -205,6 +297,7 @@ const LeafletMap = ({
         mapInstanceRef.current = null;
       }
       geoJsonLayerRef.current = null;
+      pinLayerRef.current = null;
     };
   }, []);
 
@@ -227,6 +320,11 @@ const LeafletMap = ({
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm text-muted-foreground">
           Loading map data...
+        </div>
+      )}
+      {!isLoading && pinsLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 text-sm text-muted-foreground">
+          Loading pollution pins...
         </div>
       )}
     </div>

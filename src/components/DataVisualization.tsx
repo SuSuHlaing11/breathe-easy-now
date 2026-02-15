@@ -19,12 +19,13 @@ import {
 } from "recharts";
 import LeafletMap from "./LeafletMap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { getIMHECountrySummary, getIMHEPercentiles } from "@/lib/API";
+import { getIMHECountrySummaryWithPollution, getIMHEPercentiles, getOpenAQList, OpenAQItem } from "@/lib/API";
 import { measureNameMap } from "@/lib/imheFilters";
 
 interface DataVisualizationProps {
   selectedCountries: string[];
   pollutionType: string;
+  pollutionMetric: string;
   healthArea: string;
   metric: string;
   ageName: string;
@@ -36,9 +37,20 @@ interface DataVisualizationProps {
   onYearRangeChange: (values: number[]) => void;
 }
 
+interface OpenAQPin {
+  latitude: number;
+  longitude: number;
+  location_name: string;
+  pollutant: string;
+  units: string;
+  coverage_percent?: number | null;
+  metric_value?: number | null;
+}
+
 const DataVisualization = ({
   selectedCountries,
   pollutionType,
+  pollutionMetric,
   healthArea,
   metric,
   ageName,
@@ -54,8 +66,11 @@ const DataVisualization = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState("map");
   const [mapDataByYear, setMapDataByYear] = useState<Record<number, Record<string, number>>>({});
+  const [mapPollutionByYear, setMapPollutionByYear] = useState<Record<number, Record<string, number | null>>>({});
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [openaqPinsByYear, setOpenaqPinsByYear] = useState<Record<number, OpenAQPin[]>>({});
+  const [openaqLoading, setOpenaqLoading] = useState(false);
   const [tablePage, setTablePage] = useState(1);
   const tablePageSize = 10;
   const [percentileRange, setPercentileRange] = useState<{ min: number; max: number } | null>(null);
@@ -79,6 +94,15 @@ const DataVisualization = ({
     no2: "NOâ‚‚",
     so2: "SOâ‚‚",
     co: "CO",
+  };
+
+  const pollutionParamMap: Record<string, string> = {
+    pm25: "PM2.5",
+    pm10: "PM10",
+    ozone: "O₃ mass",
+    no2: "NO₂ mass",
+    so2: "SO₂ mass",
+    co: "CO mass",
   };
 
   const healthLabel = causeName !== "all" ? causeName : "All causes";
@@ -112,6 +136,7 @@ const DataVisualization = ({
       setMapLoading(true);
       setMapError(null);
       setMapDataByYear({});
+      setMapPollutionByYear({});
       try {
         const years = Array.from(new Set(yearRange)).sort((a, b) => a - b);
         const params: any = {};
@@ -121,30 +146,91 @@ const DataVisualization = ({
         if (sexName && sexName !== "all") params.sex_name = sexName;
         const results = await Promise.all(
           years.map(async (yearValue) => {
-            const rows = await getIMHECountrySummary({ ...params, year: yearValue });
-            const map: Record<string, number> = {};
-            (rows || []).forEach((row: { country: string; value: number }) => {
-              map[row.country] = row.value;
+            const rows = await getIMHECountrySummaryWithPollution({
+              ...params,
+              year: yearValue,
+              pollutant: "PM2.5",
             });
-            return [yearValue, map] as const;
+            const map: Record<string, number> = {};
+            const pollutionMap: Record<string, number | null> = {};
+            (rows || []).forEach((row: { country: string; value: number; pollution_pm25?: number | null }) => {
+              map[row.country] = row.value;
+              if (row.pollution_pm25 !== undefined) {
+                pollutionMap[row.country] = row.pollution_pm25 ?? null;
+              }
+            });
+            return [yearValue, map, pollutionMap] as const;
           })
         );
         const next: Record<number, Record<string, number>> = {};
-        results.forEach(([yearValue, map]) => {
+        const pollutionNext: Record<number, Record<string, number | null>> = {};
+        results.forEach(([yearValue, map, pollutionMap]) => {
           next[yearValue] = map;
+          pollutionNext[yearValue] = pollutionMap;
         });
         setMapDataByYear(next);
+        setMapPollutionByYear(pollutionNext);
       } catch (err: any) {
         const message =
           err?.response?.data?.detail || err?.message || "Failed to load map data.";
         setMapError(message);
         setMapDataByYear({});
+        setMapPollutionByYear({});
       } finally {
         setMapLoading(false);
       }
     };
     load();
   }, [yearRange, metric, causeName, ageName, sexName]);
+
+  useEffect(() => {
+    const loadPins = async () => {
+      setOpenaqLoading(true);
+      setOpenaqPinsByYear({});
+      try {
+        const years = Array.from(new Set(yearRange)).sort((a, b) => a - b);
+        const countryFilter =
+          selectedCountries.length === 1 ? selectedCountries[0] : undefined;
+        const pollutant = pollutionParamMap[pollutionType] || pollutionType;
+        const results = await Promise.all(
+          years.map(async (yearValue) => {
+            const res = await getOpenAQList({
+              year: yearValue,
+              country_name: countryFilter,
+              pollutant,
+              metric: pollutionMetric as any,
+              limit: 1000,
+            });
+            const items: OpenAQItem[] = Array.isArray(res?.items) ? res.items : [];
+            const pins = items
+              .filter((item) =>
+                Number.isFinite(item.latitude) && Number.isFinite(item.longitude)
+              )
+              .map((item) => ({
+                latitude: Number(item.latitude),
+                longitude: Number(item.longitude),
+                location_name: item.location_name,
+                pollutant: item.pollutant,
+                units: item.units,
+                coverage_percent: item.coverage_percent ?? null,
+                metric_value: item.metric_value ?? item.value ?? null,
+              }));
+            return [yearValue, pins] as const;
+          })
+        );
+        const next: Record<number, OpenAQPin[]> = {};
+        results.forEach(([yearValue, pins]) => {
+          next[yearValue] = pins;
+        });
+        setOpenaqPinsByYear(next);
+      } catch {
+        setOpenaqPinsByYear({});
+      } finally {
+        setOpenaqLoading(false);
+      }
+    };
+    loadPins();
+  }, [yearRange, selectedCountries, pollutionType, pollutionMetric]);
 
   useEffect(() => {
     const loadPercentiles = async () => {
@@ -261,6 +347,11 @@ const DataVisualization = ({
           year={yearValue}
           metricLabel={metricLabels[metric]}
           dataByCountry={mapDataByYear[yearValue] || {}}
+          pollutionByCountry={mapPollutionByYear[yearValue] || {}}
+          pollutionLabel="PM2.5 (coverage avg)"
+          pins={openaqPinsByYear[yearValue] || []}
+          pinsMetricLabel={pollutionMetric}
+          pinsLoading={openaqLoading}
           scaleMin={scaleStats.min}
           scaleMax={scaleStats.max}
           isLoading={mapLoading}
